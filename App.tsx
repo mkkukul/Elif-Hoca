@@ -87,8 +87,8 @@ const App: React.FC = () => {
               <div className="bg-red-100 p-3 rounded-full mb-4">
                 <AlertCircle className="text-red-600" size={32} />
               </div>
-              <h3 className="text-lg font-bold text-red-800 mb-2">Analiz Başarısız</h3>
-              <p className="text-red-600 mb-6">{analysisState.error}</p>
+              <h3 className="text-lg font-bold text-red-800 mb-2">Hata Oluştu</h3>
+              <p className="text-red-600 mb-6 font-medium">{analysisState.error}</p>
               <button 
                 onClick={handleReset}
                 className="px-6 py-2 bg-white border border-red-300 text-red-700 font-semibold rounded-lg hover:bg-red-50 transition-colors"

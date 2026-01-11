@@ -127,12 +127,7 @@ const RESPONSE_SCHEMA: Schema = {
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
   try {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      throw new Error("API Anahtarı bulunamadı.");
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const base64Data = await fileToGenerativePart(file);
 
     const response = await ai.models.generateContent({
