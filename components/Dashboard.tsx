@@ -50,6 +50,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
     return 'bg-slate-100 text-slate-700 border-slate-200';
   };
 
+  const getProgressBarGradient = (percentage: number) => {
+    if (percentage >= 90) return 'bg-gradient-to-r from-emerald-400 to-emerald-600 shadow-[0_0_8px_rgba(16,185,129,0.3)]';
+    if (percentage >= 70) return 'bg-gradient-to-r from-teal-400 to-teal-600 shadow-[0_0_8px_rgba(20,184,166,0.3)]';
+    if (percentage >= 40) return 'bg-gradient-to-r from-orange-400 to-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.3)]';
+    return 'bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_8px_rgba(239,68,68,0.3)]';
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 pb-20 animate-fade-in space-y-8">
       {/* Header Profile Section */}
@@ -210,14 +217,14 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
                         <span className="text-slate-400">{item.bos}</span>
                       </td>
                       <td className="px-4 py-5 text-center">
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden relative">
                             <div 
-                              className={`h-full rounded-full ${item.basari_yuzdesi > 70 ? 'bg-emerald-500' : item.basari_yuzdesi > 40 ? 'bg-orange-500' : 'bg-red-500'}`}
+                              className={`h-full rounded-full transition-all duration-700 ease-out ${getProgressBarGradient(item.basari_yuzdesi)}`}
                               style={{ width: `${item.basari_yuzdesi}%` }}
                             />
                           </div>
-                          <span className="text-[10px] font-black text-slate-400">%{item.basari_yuzdesi}</span>
+                          <span className="text-[10px] font-black text-slate-500">%{item.basari_yuzdesi}</span>
                         </div>
                       </td>
                       <td className="px-8 py-5 text-center">
