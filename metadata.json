@@ -1,0 +1,5 @@
+{
+  "name": "ElifHocaYKS - Sınav Analiz Asistanı",
+  "description": "YKS (TYT/AYT) deneme sınavı sonuç belgelerini (Görsel ve PDF) yapay zeka ile analiz eden, öğrenci netlerini ve konu eksiklerini görselleştiren akıllı asistan.",
+  "requestFramePermissions": []
+}
