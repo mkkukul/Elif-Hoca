@@ -23,14 +23,34 @@ export interface TopicAnalysis {
   dogru: number;
   yanlis: number;
   bos: number;
+  basari_yuzdesi: number;
   kayip_puan: number;
   durum: string;
+}
+
+export interface ExecutiveSummary {
+  mevcut_durum: string;
+  guclu_yonler: string[];
+  zayif_yonler: string[];
+  yks_tahmini_siralama: number;
+}
+
+export interface Simulasyon {
+  senaryo: string;
+  hedef_yuzdelik: number;
+  hedef_puan: number;
+  puan_araligi: string;
+  gerekli_net_artisi: string;
+  gelisim_adimlari: string[];
 }
 
 export interface AnalysisResult {
   ogrenci_bilgi: StudentInfo;
   exams_history: ExamRecord[];
   konu_analizi: TopicAnalysis[];
+  executive_summary: ExecutiveSummary;
+  calisma_plani: string[];
+  simulasyon: Simulasyon;
 }
 
 export interface AnalysisState {

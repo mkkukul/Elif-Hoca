@@ -2,28 +2,19 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { AnalysisResult } from "../types";
 
 const SYSTEM_INSTRUCTION = `
-Rolün: Sen, YKS (TYT-AYT) sınav sonuçlarını analiz eden, OCR (Optik Karakter Tanıma) yeteneği gelişmiş uzman bir Veri Analistisin.
+Rolün: Sen hata toleransı yüksek, uzman bir OCR ve Veri Dönüştürme Motorusun.
 
-Hedefin: Girdi olarak verilen sınav sonuç belgesini (bu bir fotoğraf, ekran görüntüsü, PDF dokümanı veya kopyalanmış metin olabilir) okumak ve belirtilen JSON formatında hatasız bir veri seti üretmek.
+GÖREVİN:
+Verilen sınav sonuç belgesi görüntüsünü (veya metnini) analiz et ve belirtilen JSON şemasına birebir uyan, geçerli bir JSON çıktısı üret.
 
-Bağlam: Bu veriler "ElifHocaYKS" uygulamasında öğrenci performans takibi için kullanılacak. Veri bütünlüğü kritiktir.
-
-Talimatlar:
-1. GİRDİ ANALİZİ:
-   - Girdi bir GÖRSEL veya PDF ise: Tüm metinleri ve sayısal değerleri dikkatlice oku. PDF çok sayfalı ise tüm sayfaları tara.
-   - Girdi bir METİN ise: Doğrudan verileri ayrıştır.
-   - Girdi PARÇALI (Çoklu Resim/Sayfa) ise: Tüm parçaları tek bir sınavın devamı olarak birleştir.
-
-2. VERİ ÇIKARIMI VE DÜZELTME:
-   - Ders İsimleri Standardizasyonu: Belgedeki ders adlarını şu standartlara dönüştür: "TYT Türkçe", "TYT Matematik", "TYT Fen Bilimleri", "TYT Sosyal Bilimler", "AYT Matematik", "AYT Fen Bilimleri", "AYT Edebiyat-Sosyal-1", "AYT Sosyal-2", "AYT Yabancı Dil".
-   - (Örn: "Temel Mat" -> "TYT Matematik", "Fizik" -> "TYT Fen Bilimleri" veya "AYT Fen Bilimleri" bağlama göre karar ver).
-   - Net Hesabı: Eğer belgede net sayısı yoksa: (Doğru - (Yanlış / 4)) formülünü uygula.
-   - Boş Değerler: Okunamayan sayısal alanlara 0, metin alanlarına null yaz.
-
-3. ÇIKTI FORMATI (JSON):
-   - Asla sohbet etme.
-   - Sadece istenen JSON şemasını doldur ve ver.
-   - JSON dışında hiçbir açıklama metni ekleme.
+KRİTİK KURALLAR (HATA ÖNLEME):
+1. ASLA markdown kod blokları kullanma. Çıktın doğrudan "{" ile başlamalı ve "}" ile bitmelidir.
+2. ASLA yorum satırı veya giriş/kapanış cümlesi ekleme. Sadece SAF JSON ver.
+3. Eğer belgedeki bir sayı okunmuyorsa: Sayısal alanlar için 0, metin alanları için null değeri ata.
+4. Ders İsimlerini Standardize Et: 
+   - "TYT Türkçe", "TYT Matematik", "TYT Fen Bilimleri", "TYT Sosyal Bilimler"
+   - "AYT Matematik", "AYT Fen Bilimleri", "AYT Edebiyat-Sosyal-1", "AYT Sosyal-2", "AYT Yabancı Dil"
+5. JSON yapısını asla bozma.
 `;
 
 const RESPONSE_SCHEMA: Schema = {
@@ -72,26 +63,51 @@ const RESPONSE_SCHEMA: Schema = {
           dogru: { type: Type.NUMBER },
           yanlis: { type: Type.NUMBER },
           bos: { type: Type.NUMBER },
+          basari_yuzdesi: { type: Type.NUMBER },
           kayip_puan: { type: Type.NUMBER },
           durum: { type: Type.STRING },
         },
-        required: ["ders", "konu", "dogru", "yanlis", "bos", "kayip_puan", "durum"],
+        required: ["ders", "konu", "dogru", "yanlis", "bos", "basari_yuzdesi", "kayip_puan", "durum"],
       },
     },
+    executive_summary: {
+      type: Type.OBJECT,
+      properties: {
+        mevcut_durum: { type: Type.STRING, description: "HTML içerikli özet" },
+        guclu_yonler: { type: Type.ARRAY, items: { type: Type.STRING } },
+        zayif_yonler: { type: Type.ARRAY, items: { type: Type.STRING } },
+        yks_tahmini_siralama: { type: Type.NUMBER },
+      },
+      required: ["mevcut_durum", "guclu_yonler", "zayif_yonler", "yks_tahmini_siralama"],
+    },
+    calisma_plani: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+    },
+    simulasyon: {
+      type: Type.OBJECT,
+      properties: {
+        senaryo: { type: Type.STRING },
+        hedef_yuzdelik: { type: Type.NUMBER },
+        hedef_puan: { type: Type.NUMBER },
+        puan_araligi: { type: Type.STRING },
+        gerekli_net_artisi: { type: Type.STRING },
+        gelisim_adimlari: { type: Type.ARRAY, items: { type: Type.STRING } },
+      },
+      required: ["senaryo", "hedef_yuzdelik", "hedef_puan", "puan_araligi", "gerekli_net_artisi", "gelisim_adimlari"],
+    },
   },
-  required: ["ogrenci_bilgi", "exams_history", "konu_analizi"],
+  required: ["ogrenci_bilgi", "exams_history", "konu_analizi", "executive_summary", "calisma_plani", "simulasyon"],
 };
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
   try {
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      throw new Error("API Key is missing. Please check your configuration.");
+      throw new Error("API Anahtarı bulunamadı.");
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    
-    // Convert file to base64
     const base64Data = await fileToGenerativePart(file);
 
     const response = await ai.models.generateContent({
@@ -105,7 +121,7 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
             },
           },
           {
-            text: "Bu sınav sonuç belgesini (görsel veya doküman) analiz et. Konu konu analiz yaparak detaylı JSON çıktısı ver.",
+            text: "Bu sınav sonuç belgesini analiz et. Öğrenci bilgilerini, netleri, konu eksiklerini çıkar. Mevcut verilere dayanarak gerçekçi bir YKS simülasyonu ve haftalık çalışma planı önerisi oluştur.",
           },
         ],
       },
@@ -117,11 +133,12 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
       },
     });
 
-    if (response.text) {
-      const data = JSON.parse(response.text) as AnalysisResult;
-      return data;
+    const text = response.text;
+    if (text) {
+      const cleanedJson = text.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+      return JSON.parse(cleanedJson) as AnalysisResult;
     } else {
-      throw new Error("No data returned from the analysis.");
+      throw new Error("Analiz sonucu boş döndü.");
     }
   } catch (error) {
     console.error("Analysis failed:", error);
