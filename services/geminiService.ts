@@ -127,11 +127,18 @@ const RESPONSE_SCHEMA: Schema = {
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    // BURASI DEGISTI: import.meta.env.VITE_GEMINI_API_KEY kullanildi
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("API Anahtarı bulunamadı! Lütfen Vercel ayarlarında VITE_GEMINI_API_KEY tanımlı olduğundan emin olun.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     const base64Data = await fileToGenerativePart(file);
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash", 
       contents: {
         parts: [
           {
