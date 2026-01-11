@@ -2,19 +2,21 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { AnalysisResult } from "../types";
 
 const SYSTEM_INSTRUCTION = `
-Rolün: Sen hata toleransı yüksek, uzman bir OCR ve Veri Dönüştürme Motorusun.
+Rolün: Sen hata toleransı yüksek, uzman bir OCR ve Veri Dönüştürme Motorusun. Özellikle çok sayfalı PDF dokümanlarını ve karmaşık sınav sonuç tablolarını analiz etmede ustasın.
 
 GÖREVİN:
-Verilen sınav sonuç belgesi görüntüsünü (veya metnini) analiz et ve belirtilen JSON şemasına birebir uyan, geçerli bir JSON çıktısı üret.
+Verilen sınav sonuç belgesini (Görsel veya PDF) analiz et ve belirtilen JSON şemasına birebir uyan, geçerli bir JSON çıktısı üret.
 
 KRİTİK KURALLAR (HATA ÖNLEME):
-1. ASLA markdown kod blokları kullanma. Çıktın doğrudan "{" ile başlamalı ve "}" ile bitmelidir.
-2. ASLA yorum satırı veya giriş/kapanış cümlesi ekleme. Sadece SAF JSON ver.
-3. Eğer belgedeki bir sayı okunmuyorsa: Sayısal alanlar için 0, metin alanları için null değeri ata.
-4. Ders İsimlerini Standardize Et: 
+1. ÇOK SAYFALI DOKÜMANLAR: Eğer girdi bir PDF ise ve birden fazla sayfa içeriyorsa, TÜM sayfaları tara. Farklı sayfalara dağılmış olan dersleri, netleri ve konu analizlerini TEK BİR sınav sonucu olarak birleştir. Bilgi kaybı yaşama.
+2. ASLA markdown kod blokları kullanma. Çıktın doğrudan "{" ile başlamalı ve "}" ile bitmelidir.
+3. ASLA yorum satırı veya giriş/kapanış cümlesi ekleme. Sadece SAF JSON ver.
+4. Eğer belgedeki bir sayı okunmuyorsa: Sayısal alanlar için 0, metin alanları için null değeri ata.
+5. Ders İsimlerini Standardize Et: 
    - "TYT Türkçe", "TYT Matematik", "TYT Fen Bilimleri", "TYT Sosyal Bilimler"
    - "AYT Matematik", "AYT Fen Bilimleri", "AYT Edebiyat-Sosyal-1", "AYT Sosyal-2", "AYT Yabancı Dil"
-5. JSON yapısını asla bozma.
+6. JSON yapısını asla bozma.
+7. Executive Summary 'mevcut_durum' alanı kısa HTML etiketleri (<b>, <ul>, <li> vb.) içerebilir.
 `;
 
 const RESPONSE_SCHEMA: Schema = {
@@ -121,7 +123,7 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
             },
           },
           {
-            text: "Bu sınav sonuç belgesini analiz et. Öğrenci bilgilerini, netleri, konu eksiklerini çıkar. Mevcut verilere dayanarak gerçekçi bir YKS simülasyonu ve haftalık çalışma planı önerisi oluştur.",
+            text: "Lütfen bu dokümanı analiz et. Doküman birden fazla sayfa içeriyor olabilir; tüm sayfaları oku ve verileri birleştirerek tek bir sınav sonucu olarak dönüştür.",
           },
         ],
       },
@@ -135,7 +137,13 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
 
     const text = response.text;
     if (text) {
-      const cleanedJson = text.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+      // Robust JSON cleaning to handle potential leading/trailing garbage
+      const jsonStart = text.indexOf('{');
+      const jsonEnd = text.lastIndexOf('}');
+      if (jsonStart === -1 || jsonEnd === -1) {
+        throw new Error("Geçerli bir JSON verisi oluşturulamadı.");
+      }
+      const cleanedJson = text.substring(jsonStart, jsonEnd + 1);
       return JSON.parse(cleanedJson) as AnalysisResult;
     } else {
       throw new Error("Analiz sonucu boş döndü.");
