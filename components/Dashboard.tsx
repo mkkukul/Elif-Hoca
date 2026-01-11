@@ -1,5 +1,5 @@
-import React from 'react';
-import { AnalysisResult, TopicAnalysis } from '../types';
+import React, { useState } from 'react';
+import { AnalysisResult, TopicAnalysis, TopicTrend } from '../types';
 import { 
   BarChart, 
   Bar, 
@@ -10,7 +10,11 @@ import {
   ResponsiveContainer, 
   Cell,
   Legend,
-  LabelList
+  LabelList,
+  LineChart,
+  Line,
+  AreaChart,
+  Area
 } from 'recharts';
 import { 
   TrendingUp, 
@@ -25,7 +29,9 @@ import {
   Compass,
   ArrowRightCircle,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  ChevronRight,
+  History
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -34,8 +40,12 @@ interface DashboardProps {
 }
 
 const COLORS = ['#0d9488', '#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#2dd4bf', '#14b8a6'];
+const TREND_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
+  const [activeTab, setActiveTab] = useState<'perf' | 'trend'>('perf');
+  const [selectedTrendIndex, setSelectedTrendIndex] = useState(0);
+
   const exam = data.exams_history?.[0];
   const totalNet = exam?.ders_netleri.reduce((acc, curr) => acc + curr.net, 0) || 0;
   
@@ -56,6 +66,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
     if (percentage >= 40) return 'bg-gradient-to-r from-orange-400 to-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.3)]';
     return 'bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_8px_rgba(239,68,68,0.3)]';
   };
+
+  const currentTrend = data.topic_trends[selectedTrendIndex] || data.topic_trends[0];
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 pb-20 animate-fade-in space-y-8">
@@ -88,12 +100,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
             { label: 'Genel %', value: `%${exam.genel_yuzdelik.toFixed(2)}`, icon: <Percent size={18} />, color: 'purple' },
             { label: 'Tahmini Sıra', value: `#${data.executive_summary.yks_tahmini_siralama.toLocaleString()}`, icon: <Target size={18} />, color: 'orange' },
           ].map((stat, i) => (
-            <div key={i} className={`bg-${stat.color}-50 px-5 py-5 rounded-2xl border border-${stat.color}-100 flex flex-col justify-center min-w-[140px]`}>
-              <div className={`flex items-center space-x-2 text-${stat.color}-600 mb-1`}>
+            <div key={i} className={`bg-white px-5 py-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center min-w-[140px]`}>
+              <div className="flex items-center space-x-2 text-slate-400 mb-1">
                 {stat.icon}
-                <span className="font-bold text-xs uppercase">{stat.label}</span>
+                <span className="font-bold text-[10px] uppercase tracking-wider">{stat.label}</span>
               </div>
-              <p className={`text-2xl font-black text-${stat.color}-800`}>{stat.value}</p>
+              <p className={`text-2xl font-black text-slate-800`}>{stat.value}</p>
             </div>
           ))}
         </div>
@@ -103,54 +115,188 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
         {/* Main Analysis Column */}
         <div className="lg:col-span-8 space-y-8">
           
-          {/* Charts Card */}
-          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-            <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 mb-8 uppercase tracking-tight">
-              <Zap className="text-yellow-500" size={24} fill="currentColor" />
-              Ders Bazlı Net Analizi
-            </h3>
-            <div className="h-96 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={exam.ders_netleri} margin={{ top: 30, right: 10, left: -20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="ders" 
-                    tick={{ fontSize: 10, fontWeight: 700, fill: '#475569' }} 
-                    axisLine={false} 
-                    tickLine={false} 
-                    interval={0}
-                    height={60}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12, fontWeight: 500, fill: '#94a3b8' }} 
-                    axisLine={false} 
-                    tickLine={false}
-                  />
-                  <Tooltip 
-                    cursor={{ fill: '#f8fafc' }}
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }}
-                    labelStyle={{ fontWeight: 800, color: '#1e293b', marginBottom: '4px' }}
-                  />
-                  <Legend verticalAlign="top" height={36}/>
-                  <Bar dataKey="net" name="Net Sayısı" radius={[6, 6, 0, 0]} barSize={45}>
-                    {exam.ders_netleri.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                    <LabelList dataKey="net" position="top" style={{ fill: '#0f172a', fontSize: '12px', fontWeight: '800' }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          {/* Tab Navigation */}
+          <div className="flex p-1 bg-slate-200/50 rounded-2xl w-fit">
+            <button 
+              onClick={() => setActiveTab('perf')}
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'perf' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <Zap size={18} /> Performans Özeti
+            </button>
+            <button 
+              onClick={() => setActiveTab('trend')}
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'trend' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <History size={18} /> Gelişim Yolculuğu
+            </button>
           </div>
 
-          {/* Executive Summary */}
+          {activeTab === 'perf' ? (
+            <div className="space-y-8 animate-fade-in">
+              {/* Bar Chart Card */}
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+                <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 mb-8 uppercase tracking-tight">
+                  <Zap className="text-yellow-500" size={24} fill="currentColor" />
+                  Ders Bazlı Net Analizi
+                </h3>
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={exam.ders_netleri} margin={{ top: 30, right: 10, left: -20, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="ders" tick={{ fontSize: 10, fontWeight: 700, fill: '#475569' }} axisLine={false} tickLine={false} interval={0} height={40} />
+                      <YAxis tick={{ fontSize: 12, fontWeight: 500, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <Tooltip 
+                        cursor={{ fill: '#f8fafc' }}
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }}
+                      />
+                      <Bar dataKey="net" name="Net" radius={[6, 6, 0, 0]} barSize={45}>
+                        {exam.ders_netleri.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                        <LabelList dataKey="net" position="top" style={{ fill: '#0f172a', fontSize: '11px', fontWeight: '800' }} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Topic Table */}
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-6 bg-slate-50/50 border-b border-slate-100">
+                  <h3 className="font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
+                    <BookOpen className="text-teal-600" size={24} />
+                    Konu Analiz Detayları
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-slate-400 uppercase bg-slate-50/80">
+                      <tr>
+                        <th className="px-8 py-4 font-bold">Ders / Konu</th>
+                        <th className="px-4 py-4 font-bold text-center">D/Y/B</th>
+                        <th className="px-4 py-4 font-bold text-center">Başarı %</th>
+                        <th className="px-8 py-4 font-bold text-center">Durum</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {data.konu_analizi.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-8 py-5">
+                            <p className="font-bold text-slate-800 mb-0.5">{item.ders}</p>
+                            <p className="text-slate-500 text-xs font-medium">{item.konu}</p>
+                          </td>
+                          <td className="px-4 py-5 text-center font-mono font-bold text-slate-600">
+                            <span className="text-emerald-600">{item.dogru}</span>
+                            <span className="text-slate-300 mx-0.5">/</span>
+                            <span className="text-rose-600">{item.yanlis}</span>
+                            <span className="text-slate-300 mx-0.5">/</span>
+                            <span className="text-slate-400">{item.bos}</span>
+                          </td>
+                          <td className="px-4 py-5 text-center">
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-700 ${getProgressBarGradient(item.basari_yuzdesi)}`}
+                                  style={{ width: `${item.basari_yuzdesi}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-black text-slate-500">%{item.basari_yuzdesi}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-5 text-center">
+                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase border tracking-widest ${getStatusColor(item.durum)}`}>
+                              {item.durum}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-8 animate-fade-in">
+              {/* Trend Chart Card */}
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                  <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
+                    <History className="text-blue-500" size={24} />
+                    Konu Gelişim Trendi
+                  </h3>
+                  <select 
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500"
+                    value={selectedTrendIndex}
+                    onChange={(e) => setSelectedTrendIndex(parseInt(e.target.value))}
+                  >
+                    {data.topic_trends.map((trend, i) => (
+                      <option key={i} value={i}>{trend.ders}: {trend.konu}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={currentTrend.history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorTrend" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#0d9488" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="tarih" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} domain={[0, 100]} unit="%" />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Area type="monotone" dataKey="basari_yuzdesi" name="Başarı Oranı" stroke="#0d9488" strokeWidth={4} fillOpacity={1} fill="url(#colorTrend)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-6 flex items-center gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                  <TrendingUp className="text-blue-600" size={20} />
+                  <p className="text-sm text-blue-800 font-semibold">
+                    {currentTrend.konu} konusundaki son başarı oranınız %{currentTrend.history[currentTrend.history.length - 1].basari_yuzdesi}. 
+                    Hedeften %{100 - currentTrend.history[currentTrend.history.length - 1].basari_yuzdesi} uzaktasınız.
+                  </p>
+                </div>
+              </div>
+
+              {/* All Trends Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {data.topic_trends.slice(0, 4).map((trend, i) => (
+                   <div key={i} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{trend.ders}</p>
+                          <h4 className="font-bold text-slate-800">{trend.konu}</h4>
+                        </div>
+                        <div className={`p-2 rounded-lg bg-emerald-50 text-emerald-600`}>
+                           <TrendingUp size={16} />
+                        </div>
+                      </div>
+                      <div className="h-20 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={trend.history}>
+                            <Line type="monotone" dataKey="basari_yuzdesi" stroke={TREND_COLORS[i % TREND_COLORS.length]} strokeWidth={3} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                   </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Strategic Summary Overlay */}
           <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100">
             <h3 className="text-xl font-bold flex items-center gap-3 mb-6 uppercase tracking-wider text-indigo-300">
               <Compass size={24} />
               Stratejik Özet
             </h3>
             <div 
-              className="text-lg leading-relaxed text-slate-100 mb-8 font-medium"
+              className="text-lg leading-relaxed text-slate-100 mb-8 font-medium prose prose-invert max-w-none"
               dangerouslySetInnerHTML={{ __html: data.executive_summary.mevcut_durum }}
             />
             
@@ -181,61 +327,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
                   ))}
                 </ul>
               </div>
-            </div>
-          </div>
-
-          {/* Detailed Topic Analysis */}
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-6 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
-                <BookOpen className="text-teal-600" size={24} />
-                Konu Analiz Detayları
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-400 uppercase bg-slate-50/80">
-                  <tr>
-                    <th className="px-8 py-4 font-bold">Ders / Konu</th>
-                    <th className="px-4 py-4 font-bold text-center">D/Y/B</th>
-                    <th className="px-4 py-4 font-bold text-center">Başarı %</th>
-                    <th className="px-8 py-4 font-bold text-center">Durum</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {data.konu_analizi.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-8 py-5">
-                        <p className="font-bold text-slate-800 mb-0.5">{item.ders}</p>
-                        <p className="text-slate-500 text-xs font-medium">{item.konu}</p>
-                      </td>
-                      <td className="px-4 py-5 text-center font-mono font-bold text-slate-600">
-                        <span className="text-emerald-600">{item.dogru}</span>
-                        <span className="text-slate-300 mx-1">/</span>
-                        <span className="text-rose-600">{item.yanlis}</span>
-                        <span className="text-slate-300 mx-1">/</span>
-                        <span className="text-slate-400">{item.bos}</span>
-                      </td>
-                      <td className="px-4 py-5 text-center">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden relative">
-                            <div 
-                              className={`h-full rounded-full transition-all duration-700 ease-out ${getProgressBarGradient(item.basari_yuzdesi)}`}
-                              style={{ width: `${item.basari_yuzdesi}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] font-black text-slate-500">%{item.basari_yuzdesi}</span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5 text-center">
-                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase border tracking-widest ${getStatusColor(item.durum)}`}>
-                          {item.durum}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>

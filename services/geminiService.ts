@@ -8,15 +8,16 @@ GÖREVİN:
 Verilen sınav sonuç belgesini (Görsel veya PDF) analiz et ve belirtilen JSON şemasına birebir uyan, geçerli bir JSON çıktısı üret.
 
 KRİTİK KURALLAR (HATA ÖNLEME):
-1. ÇOK SAYFALI DOKÜMANLAR: Eğer girdi bir PDF ise ve birden fazla sayfa içeriyorsa, TÜM sayfaları tara. Farklı sayfalara dağılmış olan dersleri, netleri ve konu analizlerini TEK BİR sınav sonucu olarak birleştir. Bilgi kaybı yaşama.
-2. ASLA markdown kod blokları kullanma. Çıktın doğrudan "{" ile başlamalı ve "}" ile bitmelidir.
-3. ASLA yorum satırı veya giriş/kapanış cümlesi ekleme. Sadece SAF JSON ver.
-4. Eğer belgedeki bir sayı okunmuyorsa: Sayısal alanlar için 0, metin alanları için null değeri ata.
-5. Ders İsimlerini Standardize Et: 
+1. ÇOK SAYFALI DOKÜMANLAR: Eğer girdi bir PDF ise ve birden fazla sayfa içeriyorsa, TÜM sayfaları tara. Farklı sayfalara dağılmış olan dersleri, netleri ve konu analizlerini TEK BİR sınav sonucu olarak birleştir.
+2. GELİŞİM ANALİZİ: Belgede "Önceki Sınavlar" veya "Gelişim Tablosu" varsa bunları 'topic_trends' ve 'exams_history' alanlarına kronolojik olarak işle. Eğer sadece mevcut sınav varsa, bu sınavdaki konu başarılarını baz alarak gerçekçi bir başlangıç noktası oluştur.
+3. ASLA markdown kod blokları kullanma. Çıktın doğrudan "{" ile başlamalı ve "}" ile bitmelidir.
+4. ASLA yorum satırı veya giriş/kapanış cümlesi ekleme. Sadece SAF JSON ver.
+5. Eğer belgedeki bir sayı okunmuyorsa: Sayısal alanlar için 0, metin alanları için null değeri ata.
+6. Ders İsimlerini Standardize Et: 
    - "TYT Türkçe", "TYT Matematik", "TYT Fen Bilimleri", "TYT Sosyal Bilimler"
    - "AYT Matematik", "AYT Fen Bilimleri", "AYT Edebiyat-Sosyal-1", "AYT Sosyal-2", "AYT Yabancı Dil"
-6. JSON yapısını asla bozma.
-7. Executive Summary 'mevcut_durum' alanı kısa HTML etiketleri (<b>, <ul>, <li> vb.) içerebilir.
+7. JSON yapısını asla bozma.
+8. Executive Summary 'mevcut_durum' alanı kısa HTML etiketleri (<b>, <ul>, <li> vb.) içerebilir.
 `;
 
 const RESPONSE_SCHEMA: Schema = {
@@ -98,8 +99,30 @@ const RESPONSE_SCHEMA: Schema = {
       },
       required: ["senaryo", "hedef_yuzdelik", "hedef_puan", "puan_araligi", "gerekli_net_artisi", "gelisim_adimlari"],
     },
+    topic_trends: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          ders: { type: Type.STRING },
+          konu: { type: Type.STRING },
+          history: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                tarih: { type: Type.STRING },
+                basari_yuzdesi: { type: Type.NUMBER }
+              },
+              required: ["tarih", "basari_yuzdesi"]
+            }
+          }
+        },
+        required: ["ders", "konu", "history"]
+      }
+    }
   },
-  required: ["ogrenci_bilgi", "exams_history", "konu_analizi", "executive_summary", "calisma_plani", "simulasyon"],
+  required: ["ogrenci_bilgi", "exams_history", "konu_analizi", "executive_summary", "calisma_plani", "simulasyon", "topic_trends"],
 };
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
@@ -123,7 +146,7 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
             },
           },
           {
-            text: "Lütfen bu dokümanı analiz et. Doküman birden fazla sayfa içeriyor olabilir; tüm sayfaları oku ve verileri birleştirerek tek bir sınav sonucu olarak dönüştür.",
+            text: "Bu sınav sonuç belgesindeki tüm verileri analiz et. Varsa önceki sınav sonuçlarını da çıkararak gelişim trendlerini belirle.",
           },
         ],
       },
@@ -137,7 +160,6 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
 
     const text = response.text;
     if (text) {
-      // Robust JSON cleaning to handle potential leading/trailing garbage
       const jsonStart = text.indexOf('{');
       const jsonEnd = text.lastIndexOf('}');
       if (jsonStart === -1 || jsonEnd === -1) {

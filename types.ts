@@ -44,6 +44,15 @@ export interface Simulasyon {
   gelisim_adimlari: string[];
 }
 
+export interface TopicTrend {
+  ders: string;
+  konu: string;
+  history: {
+    tarih: string;
+    basari_yuzdesi: number;
+  }[];
+}
+
 export interface AnalysisResult {
   ogrenci_bilgi: StudentInfo;
   exams_history: ExamRecord[];
@@ -51,6 +60,7 @@ export interface AnalysisResult {
   executive_summary: ExecutiveSummary;
   calisma_plani: string[];
   simulasyon: Simulasyon;
+  topic_trends: TopicTrend[];
 }
 
 export interface AnalysisState {
