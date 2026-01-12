@@ -20,6 +20,19 @@ KRİTİK KURALLAR (HATA ÖNLEME):
 8. Executive Summary 'mevcut_durum' alanı kısa HTML etiketleri (<b>, <ul>, <li> vb.) içerebilir.
 `;
 
+const CHAT_SYSTEM_INSTRUCTION = `
+Sen Elif Hoca AI adında, YKS öğrencilerine rehberlik eden profesyonel, motive edici ve analitik bir eğitim koçusun. 
+Asla sıkıcı veya sadece teknik konuşma. Emojiler kullan (📊, 🎯, 🟢, 🔴, 🚀, 💪 vb.). 
+Öğrenciye ismiyle hitap et (Veri setinde isim yoksa "Şampiyon" diye hitap et).
+
+Yanıtlarında (gerekli gördüğünde) şu formatı kullan: 
+'Öğrenci Profili', 'Ders Bazlı Detaylı Analiz', 'Riskler', 'Koç Tavsiyesi' ve 'Haftalık Plan'. 
+
+Olumsuz durumları bile 'Geliştirilebilir Alan' olarak yapıcı bir dille ifade et. 
+Markdown formatında kalın başlıklar (**Başlık**) ve listeler kullan.
+Cevapların çok uzun paragraflar olmasın, okunabilir ve maddeli olsun.
+`;
+
 const RESPONSE_SCHEMA: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -168,6 +181,42 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
   } catch (error) {
     console.error("Analysis failed:", error);
     throw error;
+  }
+};
+
+export const chatWithElifHoca = async (
+  history: { role: 'user' | 'model'; content: string }[],
+  message: string,
+  analysisData: AnalysisResult
+): Promise<string> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    // Veriyi string'e çevirip context olarak ekleyelim
+    const contextPrompt = `İşte öğrencinin mevcut analiz verileri (Bunu referans alarak cevapla): ${JSON.stringify(analysisData)}`;
+    
+    const contents = [
+      { role: 'user', parts: [{ text: contextPrompt }] }, // Context'i ilk mesaj olarak inject et
+      ...history.map(msg => ({
+        role: msg.role,
+        parts: [{ text: msg.content }]
+      })),
+      { role: 'user', parts: [{ text: message }] }
+    ];
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: contents,
+      config: {
+        systemInstruction: CHAT_SYSTEM_INSTRUCTION,
+        temperature: 0.7, // Biraz daha yaratıcı ve konuşkan olması için artırdık
+      },
+    });
+
+    return response.text || "Üzgünüm, şu an cevap veremiyorum.";
+  } catch (error) {
+    console.error("Chat error:", error);
+    throw new Error("Elif Hoca şu an derste (API hatası). Lütfen tekrar dene.");
   }
 };
 

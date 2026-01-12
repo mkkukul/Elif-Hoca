@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AnalysisResult, TopicAnalysis, TopicTrend } from '../types';
+import ChatInterface from './ChatInterface';
 import { 
   BarChart, 
   Bar, 
@@ -370,6 +371,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
 
         {/* Sidebar / Plan Column */}
         <div className="lg:col-span-4 space-y-8">
+          
+          {/* NEW: Chat Interface Integration */}
+          <ChatInterface data={data} />
           
           {/* Simulation Section */}
           <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border-2 border-orange-100 dark:border-orange-900/30 relative overflow-hidden transition-colors">
