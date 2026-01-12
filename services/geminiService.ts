@@ -1,14 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AnalysisResult } from "../types";
 
-// 1. IGNORE Environment Variables
-// 2. HARDCODE the API Key
-const apiKey = "AIzaSyB1yvpbR7v437S0fV2hK1XhlmdqVr55BVI";
+// API Anahtarını güvenli bir şekilde ortam değişkenlerinden alıyoruz.
+// Not: Hardcoded anahtarların süresi dolduğu için güvenlik standartlarına geri dönüldü.
+const apiKey = process.env.API_KEY as string;
 
-// 3. INITIALIZE SDK
+// SDK Başlatma
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// 4. SET MODEL
+// Model Tanımlama
 const MODEL_NAME = "gemini-1.5-flash";
 
 const RESPONSE_SCHEMA = {
@@ -26,6 +26,10 @@ const RESPONSE_SCHEMA = {
 };
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
+  if (!apiKey) {
+    throw new Error("API Anahtarı bulunamadı. Lütfen sistem yöneticisi ile iletişime geçin.");
+  }
+
   try {
     const model = genAI.getGenerativeModel({ 
       model: MODEL_NAME,
@@ -53,7 +57,19 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
 
   } catch (error: any) {
     console.error("Analysis failed:", error);
-    throw new Error("Analiz Hatası: " + (error.message || "Bilinmeyen hata"));
+    
+    // Hata mesajını daha anlaşılır hale getir
+    let errorMessage = "Analiz sırasında beklenmedik bir hata oluştu.";
+    
+    if (error.message?.includes("API key expired")) {
+      errorMessage = "Sistemdeki API anahtarının süresi dolmuş. Lütfen teknik destek ile iletişime geçin.";
+    } else if (error.message?.includes("API key not valid")) {
+      errorMessage = "API anahtarı geçersiz.";
+    } else if (error.message) {
+      errorMessage = `Analiz Hatası: ${error.message}`;
+    }
+
+    throw new Error(errorMessage);
   }
 };
 
@@ -62,6 +78,8 @@ export const chatWithElifHoca = async (
   message: string,
   analysisData: AnalysisResult
 ): Promise<string> => {
+  if (!apiKey) return "Sistem yapılandırma hatası: API Anahtarı eksik.";
+
   try {
     const model = genAI.getGenerativeModel({ 
       model: MODEL_NAME,
@@ -80,8 +98,13 @@ export const chatWithElifHoca = async (
     const result = await chat.sendMessage(message);
     const response = await result.response;
     return response.text();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Chat error:", error);
+    
+    if (error.message?.includes("API key expired")) {
+      return "Üzgünüm, şu an bağlantı kuramıyorum (API Anahtarı süresi dolmuş). Lütfen daha sonra tekrar dene.";
+    }
+
     return "Şu an bağlantıda bir sorun var, ancak seni duyuyorum. Birazdan tekrar dener misin?";
   }
 };
