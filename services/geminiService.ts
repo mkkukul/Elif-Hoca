@@ -138,13 +138,24 @@ const RESPONSE_SCHEMA: Schema = {
   required: ["ogrenci_bilgi", "exams_history", "konu_analizi", "executive_summary", "calisma_plani", "simulasyon", "topic_trends"],
 };
 
+// Helper function to validate and retrieve the API Key
+const getApiKey = (): string => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.error("API_KEY eksik! Lütfen .env dosyanızı kontrol edin.");
+    throw new Error("API Anahtarı bulunamadı. Lütfen sistem yöneticinizle iletişime geçin.");
+  }
+  return apiKey;
+};
+
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     const base64Data = await fileToGenerativePart(file);
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: {
         parts: [
           {
@@ -190,7 +201,8 @@ export const chatWithElifHoca = async (
   analysisData: AnalysisResult
 ): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     
     // Veriyi string'e çevirip context olarak ekleyelim
     const contextPrompt = `İşte öğrencinin mevcut analiz verileri (Bunu referans alarak cevapla): ${JSON.stringify(analysisData)}`;
@@ -205,7 +217,7 @@ export const chatWithElifHoca = async (
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: contents,
       config: {
         systemInstruction: CHAT_SYSTEM_INSTRUCTION,
