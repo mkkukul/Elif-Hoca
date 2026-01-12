@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, User, BrainCircuit, ChevronRight } from 'lucide-react';
+import { Send, Sparkles, User, BrainCircuit, ChevronRight, Copy, Check } from 'lucide-react';
 import { AnalysisResult } from '../types';
 import { chatWithElifHoca } from '../services/geminiService';
 
@@ -76,6 +76,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ data }) => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -84,7 +85,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ data }) => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleSend = async (text: string) => {
     if (!text.trim() || isLoading) return;
@@ -95,11 +96,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ data }) => {
     setIsLoading(true);
 
     try {
-      // API'ye sadece mesaj geçmişini gönder (son mesaj dahil değil, onu ayrıca gönderiyoruz fonksiyon içinde ama burada history tutarlılığı için)
-      // geminiService içindeki fonksiyon history + current message alıyor.
-      // Biz state'deki önceki mesajları history olarak verelim.
       const history = messages.map(m => ({ role: m.role, content: m.content }));
-      
       const responseText = await chatWithElifHoca(history, text, data);
       
       const botMessage: Message = { role: 'model', content: responseText };
@@ -109,6 +106,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ data }) => {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCopy = async (text: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (err) {
+      console.error('Kopyalama hatası:', err);
     }
   };
 
@@ -133,7 +140,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ data }) => {
         {messages.map((msg, idx) => (
           <div 
             key={idx} 
-            className={`flex items-end gap-2 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+            className={`flex items-end gap-2 group ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
           >
             {/* Avatar */}
             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
@@ -153,22 +160,41 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ data }) => {
               {msg.role === 'user' ? (
                 <p className="text-sm">{msg.content}</p>
               ) : (
-                <FormattedMessage content={msg.content} />
+                <>
+                  <div className="pr-6">
+                    <FormattedMessage content={msg.content} />
+                  </div>
+                  <button
+                    onClick={() => handleCopy(msg.content, idx)}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100"
+                    title="Metni Kopyala"
+                    aria-label="Metni kopyala"
+                  >
+                    {copiedIndex === idx ? (
+                      <Check size={14} className="text-green-500" />
+                    ) : (
+                      <Copy size={14} />
+                    )}
+                  </button>
+                </>
               )}
             </div>
           </div>
         ))}
         {isLoading && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
               <Sparkles size={16} className="text-indigo-600 animate-pulse" />
             </div>
-            <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none border border-slate-100 dark:border-slate-700">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="flex flex-col gap-1">
+              <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl rounded-tl-none border border-slate-100 dark:border-slate-700 w-fit">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
               </div>
+              <span className="text-[10px] text-slate-400 ml-1 font-medium animate-pulse">Elif Hoca yazıyor...</span>
             </div>
           </div>
         )}

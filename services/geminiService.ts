@@ -1,17 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AnalysisResult } from "../types";
 
-// API Key kontrolü
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  throw new Error("API Key bulunamadı! .env dosyasında GEMINI_API_KEY tanımlı olduğundan emin olun.");
-}
+// HARDCODED API KEY - User Request
+const apiKey = "AIzaSyB1yvpbR7v437S0fV2hK1XhlmdqVr55BVI";
 
-// SDK Kurulumu
+// SDK Setup
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Model Tanımı - KESİN ÇALIŞAN VERSİYON
-const MODEL_NAME = "gemini-1.5-flash-001"; 
+// Model Definition
+const MODEL_NAME = "gemini-1.5-flash";
 
 const RESPONSE_SCHEMA = {
   description: "Sınav Analiz Sonucu",
@@ -33,7 +30,7 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
       model: MODEL_NAME,
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA as any, // Yeni SDK şemayı doğrudan destekler
+        responseSchema: RESPONSE_SCHEMA as any,
         temperature: 0.1,
       }
     });
@@ -49,7 +46,7 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
     const response = await result.response;
     const text = response.text();
     
-    // Temizleme işlemi
+    // Clean response
     const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(cleanedJson) as AnalysisResult;
 
@@ -70,7 +67,6 @@ export const chatWithElifHoca = async (
       systemInstruction: `Sen Elif Hoca AI adında, YKS öğrencilerine rehberlik eden bir eğitim koçusun. Şu anki öğrenci verileri: ${JSON.stringify(analysisData)}`
     });
 
-    // History formatını yeni SDK'ya uyarla
     const chatHistory = history.map(msg => ({
       role: msg.role === 'model' ? 'model' : 'user',
       parts: [{ text: msg.content }],
