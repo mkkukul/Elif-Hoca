@@ -1,197 +1,154 @@
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult } from "../types";
 
+// API Key initialization according to guidelines.
+// Assume process.env.API_KEY is pre-configured and available.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+// Using gemini-3-flash-preview as recommended for text/vision tasks.
+const MODEL_NAME = "gemini-3-flash-preview"; 
+
 const SYSTEM_INSTRUCTION = `
-Rolün: Sen hata toleransı yüksek, uzman bir OCR ve Veri Dönüştürme Motorusun. Özellikle çok sayfalı PDF dokümanlarını ve karmaşık sınav sonuç tablolarını analiz etmede ustasın.
-
-GÖREVİN:
-Verilen sınav sonuç belgesini (Görsel veya PDF) analiz et ve belirtilen JSON şemasına birebir uyan, geçerli bir JSON çıktısı üret.
-
-KRİTİK KURALLAR (HATA ÖNLEME):
-1. ÇOK SAYFALI DOKÜMANLAR: Eğer girdi bir PDF ise ve birden fazla sayfa içeriyorsa, TÜM sayfaları tara. Farklı sayfalara dağılmış olan dersleri, netleri ve konu analizlerini TEK BİR sınav sonucu olarak birleştir.
-2. GELİŞİM ANALİZİ: Belgede "Önceki Sınavlar" veya "Gelişim Tablosu" varsa bunları 'topic_trends' ve 'exams_history' alanlarına kronolojik olarak işle. Eğer sadece mevcut sınav varsa, bu sınavdaki konu başarılarını baz alarak gerçekçi bir başlangıç noktası oluştur.
-3. ASLA markdown kod blokları kullanma. Çıktın doğrudan "{" ile başlamalı ve "}" ile bitmelidir.
-4. ASLA yorum satırı veya giriş/kapanış cümlesi ekleme. Sadece SAF JSON ver.
-5. Eğer belgedeki bir sayı okunmuyorsa: Sayısal alanlar için 0, metin alanları için null değeri ata.
-6. Ders İsimlerini Standardize Et: 
-   - "TYT Türkçe", "TYT Matematik", "TYT Fen Bilimleri", "TYT Sosyal Bilimler"
-   - "AYT Matematik", "AYT Fen Bilimleri", "AYT Edebiyat-Sosyal-1", "AYT Sosyal-2", "AYT Yabancı Dil"
-7. JSON yapısını asla bozma.
-8. Executive Summary 'mevcut_durum' alanı kısa HTML etiketleri (<b>, <ul>, <li> vb.) içerebilir.
-`;
-
-const CHAT_SYSTEM_INSTRUCTION = `
-Sen Elif Hoca AI adında, YKS öğrencilerine rehberlik eden profesyonel, motive edici ve analitik bir eğitim koçusun. 
-Asla sıkıcı veya sadece teknik konuşma. Emojiler kullan (📊, 🎯, 🟢, 🔴, 🚀, 💪 vb.). 
-Öğrenciye ismiyle hitap et (Veri setinde isim yoksa "Şampiyon" diye hitap et).
-
-Yanıtlarında (gerekli gördüğünde) şu formatı kullan: 
-'Öğrenci Profili', 'Ders Bazlı Detaylı Analiz', 'Riskler', 'Koç Tavsiyesi' ve 'Haftalık Plan'. 
-
-Olumsuz durumları bile 'Geliştirilebilir Alan' olarak yapıcı bir dille ifade et. 
-Markdown formatında kalın başlıklar (**Başlık**) ve listeler kullan.
-Cevapların çok uzun paragraflar olmasın, okunabilir ve maddeli olsun.
+Rolün: Sen hata toleransı yüksek, uzman bir OCR ve Veri Dönüştürme Motorusun. 
+GÖREVİN: Verilen sınav sonuç belgesini analiz et ve JSON çıktısı üret.
+KRİTİK KURALLAR:
+1. Sadece SAF JSON döndür. Markdown blokları (\`\`\`json) KULLANMA.
+2. Sayısal olmayan değerler için null, okunamayan sayılar için 0 kullan.
+3. Tüm sayfaları tek bir sınav sonucu olarak birleştir.
 `;
 
 const RESPONSE_SCHEMA = {
-  type: SchemaType.OBJECT,
+  type: Type.OBJECT,
   properties: {
-    ogrenci_bilgi: {
-      type: SchemaType.OBJECT,
-      properties: {
-        ad_soyad: { type: SchemaType.STRING, nullable: true },
-        sube: { type: SchemaType.STRING, nullable: true },
-        numara: { type: SchemaType.STRING, nullable: true },
-      },
-      required: ["ad_soyad"],
+    ogrenci_bilgi: { 
+      type: Type.OBJECT, 
+      properties: { 
+        ad_soyad: { type: Type.STRING }, 
+        sube: { type: Type.STRING }, 
+        numara: { type: Type.STRING } 
+      } 
     },
-    exams_history: {
-      type: SchemaType.ARRAY,
-      items: {
-        type: SchemaType.OBJECT,
-        properties: {
-          sinav_adi: { type: SchemaType.STRING, nullable: true },
-          tarih: { type: SchemaType.STRING, nullable: true },
-          toplam_puan: { type: SchemaType.NUMBER },
-          genel_yuzdelik: { type: SchemaType.NUMBER },
-          ders_netleri: {
-            type: SchemaType.ARRAY,
-            items: {
-              type: SchemaType.OBJECT,
-              properties: {
-                ders: { type: SchemaType.STRING },
-                net: { type: SchemaType.NUMBER },
-              },
-              required: ["ders", "net"],
-            },
-          },
-        },
-        required: ["sinav_adi", "tarih", "toplam_puan", "genel_yuzdelik", "ders_netleri"],
-      },
+    exams_history: { 
+      type: Type.ARRAY, 
+      items: { 
+        type: Type.OBJECT, 
+        properties: { 
+          sinav_adi: { type: Type.STRING }, 
+          tarih: { type: Type.STRING }, 
+          toplam_puan: { type: Type.NUMBER }, 
+          genel_yuzdelik: { type: Type.NUMBER }, 
+          ders_netleri: { 
+            type: Type.ARRAY, 
+            items: { 
+              type: Type.OBJECT, 
+              properties: { 
+                ders: { type: Type.STRING }, 
+                net: { type: Type.NUMBER } 
+              } 
+            } 
+          } 
+        } 
+      } 
     },
-    konu_analizi: {
-      type: SchemaType.ARRAY,
-      items: {
-        type: SchemaType.OBJECT,
-        properties: {
-          ders: { type: SchemaType.STRING },
-          konu: { type: SchemaType.STRING },
-          dogru: { type: SchemaType.NUMBER },
-          yanlis: { type: SchemaType.NUMBER },
-          bos: { type: SchemaType.NUMBER },
-          basari_yuzdesi: { type: SchemaType.NUMBER },
-          kayip_puan: { type: SchemaType.NUMBER },
-          durum: { type: SchemaType.STRING },
-        },
-        required: ["ders", "konu", "dogru", "yanlis", "bos", "basari_yuzdesi", "kayip_puan", "durum"],
-      },
+    konu_analizi: { 
+      type: Type.ARRAY, 
+      items: { 
+        type: Type.OBJECT, 
+        properties: { 
+          ders: { type: Type.STRING }, 
+          konu: { type: Type.STRING }, 
+          dogru: { type: Type.NUMBER }, 
+          yanlis: { type: Type.NUMBER }, 
+          bos: { type: Type.NUMBER }, 
+          basari_yuzdesi: { type: Type.NUMBER }, 
+          kayip_puan: { type: Type.NUMBER }, 
+          durum: { type: Type.STRING } 
+        } 
+      } 
     },
-    executive_summary: {
-      type: SchemaType.OBJECT,
-      properties: {
-        mevcut_durum: { type: SchemaType.STRING, description: "HTML içerikli özet" },
-        guclu_yonler: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-        zayif_yonler: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-        yks_tahmini_siralama: { type: SchemaType.NUMBER },
-      },
-      required: ["mevcut_durum", "guclu_yonler", "zayif_yonler", "yks_tahmini_siralama"],
+    executive_summary: { 
+      type: Type.OBJECT, 
+      properties: { 
+        mevcut_durum: { type: Type.STRING }, 
+        guclu_yonler: { type: Type.ARRAY, items: { type: Type.STRING } }, 
+        zayif_yonler: { type: Type.ARRAY, items: { type: Type.STRING } }, 
+        yks_tahmini_siralama: { type: Type.NUMBER } 
+      } 
     },
-    calisma_plani: {
-      type: SchemaType.ARRAY,
-      items: { type: SchemaType.STRING },
+    calisma_plani: { type: Type.ARRAY, items: { type: Type.STRING } },
+    simulasyon: { 
+      type: Type.OBJECT, 
+      properties: { 
+        senaryo: { type: Type.STRING }, 
+        hedef_yuzdelik: { type: Type.NUMBER }, 
+        hedef_puan: { type: Type.NUMBER }, 
+        puan_araligi: { type: Type.STRING }, 
+        gerekli_net_artisi: { type: Type.STRING }, 
+        gelisim_adimlari: { type: Type.ARRAY, items: { type: Type.STRING } } 
+      } 
     },
-    simulasyon: {
-      type: SchemaType.OBJECT,
-      properties: {
-        senaryo: { type: SchemaType.STRING },
-        hedef_yuzdelik: { type: SchemaType.NUMBER },
-        hedef_puan: { type: SchemaType.NUMBER },
-        puan_araligi: { type: SchemaType.STRING },
-        gerekli_net_artisi: { type: SchemaType.STRING },
-        gelisim_adimlari: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-      },
-      required: ["senaryo", "hedef_yuzdelik", "hedef_puan", "puan_araligi", "gerekli_net_artisi", "gelisim_adimlari"],
-    },
-    topic_trends: {
-      type: SchemaType.ARRAY,
-      items: {
-        type: SchemaType.OBJECT,
-        properties: {
-          ders: { type: SchemaType.STRING },
-          konu: { type: SchemaType.STRING },
-          history: {
-            type: SchemaType.ARRAY,
-            items: {
-              type: SchemaType.OBJECT,
-              properties: {
-                tarih: { type: SchemaType.STRING },
-                basari_yuzdesi: { type: SchemaType.NUMBER }
-              },
-              required: ["tarih", "basari_yuzdesi"]
-            }
-          }
-        },
-        required: ["ders", "konu", "history"]
-      }
+    topic_trends: { 
+      type: Type.ARRAY, 
+      items: { 
+        type: Type.OBJECT, 
+        properties: { 
+          ders: { type: Type.STRING }, 
+          konu: { type: Type.STRING }, 
+          history: { 
+            type: Type.ARRAY, 
+            items: { 
+              type: Type.OBJECT, 
+              properties: { 
+                tarih: { type: Type.STRING }, 
+                basari_yuzdesi: { type: Type.NUMBER } 
+              } 
+            } 
+          } 
+        } 
+      } 
     }
-  },
-  required: ["ogrenci_bilgi", "exams_history", "konu_analizi", "executive_summary", "calisma_plani", "simulasyon", "topic_trends"],
-};
-
-// API Anahtarı alma yardımcı fonksiyonu
-const getApiKey = () => {
-  // @ts-ignore - Vite veya env değişkenleri için
-  const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || process.env?.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key bulunamadı! Lütfen .env dosyasında VITE_GEMINI_API_KEY veya GEMINI_API_KEY'in tanımlı olduğundan emin olun.");
   }
-  return apiKey;
 };
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
-  const apiKey = getApiKey();
-
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      systemInstruction: SYSTEM_INSTRUCTION,
-      generationConfig: {
+    const base64Data = await fileToGenerativePart(file);
+    const prompt = "Bu sınav sonuç belgesindeki tüm verileri analiz et. Varsa önceki sınav sonuçlarını da çıkararak gelişim trendlerini belirle. Çıktı sadece JSON olmalı.";
+
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: {
+        parts: [
+          { text: prompt },
+          { 
+            inlineData: { 
+              mimeType: file.type, 
+              data: base64Data 
+            } 
+          }
+        ]
+      },
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
         responseSchema: RESPONSE_SCHEMA,
         temperature: 0.1,
       }
     });
 
-    const base64Data = await fileToGenerativePart(file);
-
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: file.type,
-        },
-      },
-      "Bu sınav sonuç belgesindeki tüm verileri analiz et. Varsa önceki sınav sonuçlarını da çıkararak gelişim trendlerini belirle.",
-    ]);
-
-    const response = result.response;
-    const text = response.text();
-
-    if (text) {
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}');
-      if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error("Geçerli bir JSON verisi oluşturulamadı.");
-      }
-      const cleanedJson = text.substring(jsonStart, jsonEnd + 1);
-      return JSON.parse(cleanedJson) as AnalysisResult;
-    } else {
-      throw new Error("Analiz sonucu boş döndü.");
+    const text = response.text;
+    
+    if (!text) {
+      throw new Error("API boş yanıt döndürdü.");
     }
-  } catch (error) {
+    
+    // Temizleme işlemi (Markdown bloklarını kaldırır)
+    const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(cleanedJson) as AnalysisResult;
+
+  } catch (error: any) {
     console.error("Analysis failed:", error);
-    throw error;
+    throw new Error("Analiz sırasında bir hata oluştu: " + error.message);
   }
 };
 
@@ -200,58 +157,32 @@ export const chatWithElifHoca = async (
   message: string,
   analysisData: AnalysisResult
 ): Promise<string> => {
-  const apiKey = getApiKey();
-
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      systemInstruction: CHAT_SYSTEM_INSTRUCTION,
-      generationConfig: {
-        temperature: 0.7,
+    const formattedHistory = history.map(msg => ({
+      role: msg.role,
+      parts: [{ text: msg.content }],
+    }));
+
+    const chat = ai.chats.create({ 
+      model: MODEL_NAME,
+      history: formattedHistory,
+      config: {
+        systemInstruction: `Sen Elif Hoca AI adında, YKS öğrencilerine rehberlik eden bir eğitim koçusun. Şu anki öğrenci verileri: ${JSON.stringify(analysisData)}`
       }
     });
 
-    // Chat geçmişini SDK formatına dönüştür
-    const formattedHistory = history.map(msg => ({
-      role: msg.role,
-      parts: [{ text: msg.content }]
-    }));
-
-    // İlk mesaj olarak context'i ekle (Eğer history boşsa veya en başa eklemek için)
-    // Chat oturumunu başlat
-    const chat = model.startChat({
-      history: [
-        {
-          role: "user",
-          parts: [{ text: `İşte öğrencinin mevcut analiz verileri (Bunu referans alarak cevapla): ${JSON.stringify(analysisData)}` }]
-        },
-        {
-          role: "model",
-          parts: [{ text: "Anlaşıldı, öğrencinin verilerini inceledim ve rehberlik etmeye hazırım." }]
-        },
-        ...formattedHistory
-      ],
-    });
-
-    const result = await chat.sendMessage(message);
-    const response = result.response;
-    
-    return response.text();
+    const result = await chat.sendMessage({ message: message });
+    return result.text || "Cevap alınamadı.";
   } catch (error) {
     console.error("Chat error:", error);
-    throw new Error("Elif Hoca şu an derste (API hatası). Lütfen tekrar dene.");
+    throw new Error("Elif Hoca şu an cevap veremiyor.");
   }
 };
 
 const fileToGenerativePart = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      const base64Data = base64String.split(",")[1];
-      resolve(base64Data);
-    };
+    reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
