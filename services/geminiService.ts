@@ -149,7 +149,7 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
     const base64Data = await fileToGenerativePart(file);
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash-001",
+      model: "gemini-2.0-flash-exp",
       contents: {
         parts: [
           {
@@ -215,7 +215,7 @@ export const chatWithElifHoca = async (
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash-001",
+      model: "gemini-2.0-flash-exp",
       contents: contents,
       config: {
         systemInstruction: CHAT_SYSTEM_INSTRUCTION,
