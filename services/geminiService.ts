@@ -139,11 +139,14 @@ const RESPONSE_SCHEMA: Schema = {
 };
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
+  // Fix: Use process.env.API_KEY directly as per @google/genai guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const base64Data = await fileToGenerativePart(file);
 
     const response = await ai.models.generateContent({
+      // Fix: Use gemini-3-flash-preview instead of deprecated gemini-1.5-flash
       model: "gemini-3-flash-preview",
       contents: {
         parts: [
@@ -189,8 +192,10 @@ export const chatWithElifHoca = async (
   message: string,
   analysisData: AnalysisResult
 ): Promise<string> => {
+  // Fix: Use process.env.API_KEY directly as per @google/genai guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     // Veriyi string'e çevirip context olarak ekleyelim
     const contextPrompt = `İşte öğrencinin mevcut analiz verileri (Bunu referans alarak cevapla): ${JSON.stringify(analysisData)}`;
@@ -205,6 +210,7 @@ export const chatWithElifHoca = async (
     ];
 
     const response = await ai.models.generateContent({
+      // Fix: Use gemini-3-flash-preview instead of deprecated gemini-1.5-flash
       model: "gemini-3-flash-preview",
       contents: contents,
       config: {
