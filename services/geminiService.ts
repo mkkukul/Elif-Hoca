@@ -1,13 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AnalysisResult } from "../types";
 
-// HARDCODED API KEY - User Request
+// 1. IGNORE Environment Variables
+// 2. HARDCODE the API Key
 const apiKey = "AIzaSyB1yvpbR7v437S0fV2hK1XhlmdqVr55BVI";
 
-// SDK Setup
+// 3. INITIALIZE SDK
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Model Definition
+// 4. SET MODEL
 const MODEL_NAME = "gemini-1.5-flash";
 
 const RESPONSE_SCHEMA = {
