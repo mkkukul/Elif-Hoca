@@ -39,8 +39,8 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isAnalyzing }) =>
     <div className="w-full max-w-2xl mx-auto my-8">
       <div
         className={`relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-2xl transition-all duration-300 ease-in-out cursor-pointer overflow-hidden
-          ${isAnalyzing ? 'bg-slate-50 border-slate-300 cursor-wait' : 
-            dragActive ? 'bg-teal-50 border-teal-500 scale-[1.02]' : 'bg-white border-slate-300 hover:border-teal-400 hover:bg-slate-50'
+          ${isAnalyzing ? 'bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-wait' : 
+            dragActive ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-500 scale-[1.02]' : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-800/80'
           }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -58,24 +58,24 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isAnalyzing }) =>
         <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
           {isAnalyzing ? (
             <>
-              <Loader2 className="w-12 h-12 text-teal-600 animate-spin mb-4" />
-              <p className="text-lg font-semibold text-slate-700">Belge Analiz Ediliyor...</p>
-              <p className="text-sm text-slate-500 mt-2">Yapay zeka verileri ayrıştırıyor. Lütfen bekleyin.</p>
+              <Loader2 className="w-12 h-12 text-teal-600 dark:text-teal-400 animate-spin mb-4" />
+              <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Belge Analiz Ediliyor...</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Yapay zeka verileri ayrıştırıyor. Lütfen bekleyin.</p>
             </>
           ) : (
             <>
-              <div className={`flex gap-3 mb-4 transition-colors ${dragActive ? 'text-teal-600' : 'text-slate-500'}`}>
-                <div className={`p-4 rounded-full ${dragActive ? 'bg-teal-100' : 'bg-slate-100'}`}>
+              <div className={`flex gap-3 mb-4 transition-colors ${dragActive ? 'text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                <div className={`p-4 rounded-full ${dragActive ? 'bg-teal-100 dark:bg-teal-900/40' : 'bg-slate-100 dark:bg-slate-700'}`}>
                   <FileImage size={28} />
                 </div>
-                <div className={`p-4 rounded-full ${dragActive ? 'bg-teal-100' : 'bg-slate-100'}`}>
+                <div className={`p-4 rounded-full ${dragActive ? 'bg-teal-100 dark:bg-teal-900/40' : 'bg-slate-100 dark:bg-slate-700'}`}>
                   <FileText size={28} />
                 </div>
               </div>
-              <p className="mb-2 text-lg text-slate-700 font-medium">
+              <p className="mb-2 text-lg text-slate-700 dark:text-slate-200 font-medium">
                 {dragActive ? "Dosyayı buraya bırakın" : "Sınav Sonucunu (Görsel veya PDF) Yükle"}
               </p>
-              <p className="text-sm text-slate-400">Tıklayın veya dosyayı buraya sürükleyin</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">Tıklayın veya dosyayı buraya sürükleyin</p>
             </>
           )}
         </div>
@@ -83,11 +83,11 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect, isAnalyzing }) =>
       
       {!isAnalyzing && (
         <div className="flex flex-wrap justify-center gap-4 mt-4">
-           <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
+           <span className="text-xs font-medium text-slate-400 dark:text-slate-500 flex items-center gap-1">
              <div className="w-1.5 h-1.5 rounded-full bg-teal-400"></div>
              JPG / PNG Desteklenir
            </span>
-           <span className="text-xs font-medium text-slate-400 flex items-center gap-1">
+           <span className="text-xs font-medium text-slate-400 dark:text-slate-500 flex items-center gap-1">
              <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
              PDF (Çok Sayfalı) Desteklenir
            </span>
