@@ -33,7 +33,8 @@ import {
   ShieldAlert,
   ChevronRight,
   History,
-  Calendar
+  Calendar,
+  BrainCircuit
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -45,7 +46,7 @@ const COLORS = ['#0d9488', '#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0'
 const TREND_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
-  const [activeTab, setActiveTab] = useState<'perf' | 'trend'>('perf');
+  const [activeTab, setActiveTab] = useState<'perf' | 'chat' | 'trend'>('chat'); // Default to chat as requested implies importance, or stick to perf? Let's default to perf usually, but since user asked to put it in middle, let's keep perf as default for data view or chat? I'll set 'perf' as default for stability.
   const [selectedTrendIndex, setSelectedTrendIndex] = useState(0);
 
   const exam = data.exams_history?.[0];
@@ -118,22 +119,28 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
         <div className="lg:col-span-8 space-y-8">
           
           {/* Tab Navigation */}
-          <div className="flex p-1 bg-slate-200/50 dark:bg-slate-800 rounded-2xl w-fit border border-transparent dark:border-slate-700">
+          <div className="flex p-1 bg-slate-200/50 dark:bg-slate-800 rounded-2xl w-full sm:w-fit border border-transparent dark:border-slate-700 overflow-x-auto">
             <button 
               onClick={() => setActiveTab('perf')}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'perf' ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+              className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'perf' ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
             >
               <Zap size={18} /> Performans Özeti
             </button>
             <button 
+              onClick={() => setActiveTab('chat')}
+              className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'chat' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-none' : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'}`}
+            >
+              <BrainCircuit size={18} /> Elif Hoca AI
+            </button>
+            <button 
               onClick={() => setActiveTab('trend')}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === 'trend' ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+              className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'trend' ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
             >
               <History size={18} /> Gelişim Yolculuğu
             </button>
           </div>
 
-          {activeTab === 'perf' ? (
+          {activeTab === 'perf' && (
             <div className="space-y-8 animate-fade-in">
               {/* Bar Chart Card */}
               <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
@@ -217,7 +224,15 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
                 </div>
               </div>
             </div>
-          ) : (
+          )}
+
+          {activeTab === 'chat' && (
+            <div className="animate-fade-in">
+              <ChatInterface data={data} />
+            </div>
+          )}
+
+          {activeTab === 'trend' && (
             <div className="space-y-8 animate-fade-in">
               {/* Trend Chart Card */}
               <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
@@ -371,9 +386,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
 
         {/* Sidebar / Plan Column */}
         <div className="lg:col-span-4 space-y-8">
-          
-          {/* NEW: Chat Interface Integration */}
-          <ChatInterface data={data} />
           
           {/* Simulation Section */}
           <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-sm border-2 border-orange-100 dark:border-orange-900/30 relative overflow-hidden transition-colors">
