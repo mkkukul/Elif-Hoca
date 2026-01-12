@@ -1,154 +1,61 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AnalysisResult } from "../types";
 
-// API Key initialization according to guidelines.
-// Assume process.env.API_KEY is pre-configured and available.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// API Key kontrolü
+const apiKey = process.env.API_KEY;
+if (!apiKey) {
+  throw new Error("API Key bulunamadı! .env dosyasını kontrol edin.");
+}
 
-// Using gemini-3-flash-preview as recommended for text/vision tasks.
-const MODEL_NAME = "gemini-3-flash-preview"; 
+// SDK Kurulumu
+const genAI = new GoogleGenerativeAI(apiKey);
 
-const SYSTEM_INSTRUCTION = `
-Rolün: Sen hata toleransı yüksek, uzman bir OCR ve Veri Dönüştürme Motorusun. 
-GÖREVİN: Verilen sınav sonuç belgesini analiz et ve JSON çıktısı üret.
-KRİTİK KURALLAR:
-1. Sadece SAF JSON döndür. Markdown blokları (\`\`\`json) KULLANMA.
-2. Sayısal olmayan değerler için null, okunamayan sayılar için 0 kullan.
-3. Tüm sayfaları tek bir sınav sonucu olarak birleştir.
-`;
+// Model Tanımı - KESİN ÇALIŞAN VERSİYON
+const MODEL_NAME = "gemini-1.5-flash-001"; 
 
 const RESPONSE_SCHEMA = {
-  type: Type.OBJECT,
+  description: "Sınav Analiz Sonucu",
+  type: "object",
   properties: {
-    ogrenci_bilgi: { 
-      type: Type.OBJECT, 
-      properties: { 
-        ad_soyad: { type: Type.STRING }, 
-        sube: { type: Type.STRING }, 
-        numara: { type: Type.STRING } 
-      } 
-    },
-    exams_history: { 
-      type: Type.ARRAY, 
-      items: { 
-        type: Type.OBJECT, 
-        properties: { 
-          sinav_adi: { type: Type.STRING }, 
-          tarih: { type: Type.STRING }, 
-          toplam_puan: { type: Type.NUMBER }, 
-          genel_yuzdelik: { type: Type.NUMBER }, 
-          ders_netleri: { 
-            type: Type.ARRAY, 
-            items: { 
-              type: Type.OBJECT, 
-              properties: { 
-                ders: { type: Type.STRING }, 
-                net: { type: Type.NUMBER } 
-              } 
-            } 
-          } 
-        } 
-      } 
-    },
-    konu_analizi: { 
-      type: Type.ARRAY, 
-      items: { 
-        type: Type.OBJECT, 
-        properties: { 
-          ders: { type: Type.STRING }, 
-          konu: { type: Type.STRING }, 
-          dogru: { type: Type.NUMBER }, 
-          yanlis: { type: Type.NUMBER }, 
-          bos: { type: Type.NUMBER }, 
-          basari_yuzdesi: { type: Type.NUMBER }, 
-          kayip_puan: { type: Type.NUMBER }, 
-          durum: { type: Type.STRING } 
-        } 
-      } 
-    },
-    executive_summary: { 
-      type: Type.OBJECT, 
-      properties: { 
-        mevcut_durum: { type: Type.STRING }, 
-        guclu_yonler: { type: Type.ARRAY, items: { type: Type.STRING } }, 
-        zayif_yonler: { type: Type.ARRAY, items: { type: Type.STRING } }, 
-        yks_tahmini_siralama: { type: Type.NUMBER } 
-      } 
-    },
-    calisma_plani: { type: Type.ARRAY, items: { type: Type.STRING } },
-    simulasyon: { 
-      type: Type.OBJECT, 
-      properties: { 
-        senaryo: { type: Type.STRING }, 
-        hedef_yuzdelik: { type: Type.NUMBER }, 
-        hedef_puan: { type: Type.NUMBER }, 
-        puan_araligi: { type: Type.STRING }, 
-        gerekli_net_artisi: { type: Type.STRING }, 
-        gelisim_adimlari: { type: Type.ARRAY, items: { type: Type.STRING } } 
-      } 
-    },
-    topic_trends: { 
-      type: Type.ARRAY, 
-      items: { 
-        type: Type.OBJECT, 
-        properties: { 
-          ders: { type: Type.STRING }, 
-          konu: { type: Type.STRING }, 
-          history: { 
-            type: Type.ARRAY, 
-            items: { 
-              type: Type.OBJECT, 
-              properties: { 
-                tarih: { type: Type.STRING }, 
-                basari_yuzdesi: { type: Type.NUMBER } 
-              } 
-            } 
-          } 
-        } 
-      } 
-    }
+    ogrenci_bilgi: { type: "object", properties: { ad_soyad: { type: "string" }, sube: { type: "string" }, numara: { type: "string" } } },
+    exams_history: { type: "array", items: { type: "object", properties: { sinav_adi: { type: "string" }, tarih: { type: "string" }, toplam_puan: { type: "number" }, genel_yuzdelik: { type: "number" }, ders_netleri: { type: "array", items: { type: "object", properties: { ders: { type: "string" }, net: { type: "number" } } } } } } },
+    konu_analizi: { type: "array", items: { type: "object", properties: { ders: { type: "string" }, konu: { type: "string" }, dogru: { type: "number" }, yanlis: { type: "number" }, bos: { type: "number" }, basari_yuzdesi: { type: "number" }, kayip_puan: { type: "number" }, durum: { type: "string" } } } },
+    executive_summary: { type: "object", properties: { mevcut_durum: { type: "string" }, guclu_yonler: { type: "array", items: { type: "string" } }, zayif_yonler: { type: "array", items: { type: "string" } }, yks_tahmini_siralama: { type: "number" } } },
+    calisma_plani: { type: "array", items: { type: "string" } },
+    simulasyon: { type: "object", properties: { senaryo: { type: "string" }, hedef_yuzdelik: { type: "number" }, hedef_puan: { type: "number" }, puan_araligi: { type: "string" }, gerekli_net_artisi: { type: "string" }, gelisim_adimlari: { type: "array", items: { type: "string" } } } },
+    topic_trends: { type: "array", items: { type: "object", properties: { ders: { type: "string" }, konu: { type: "string" }, history: { type: "array", items: { type: "object", properties: { tarih: { type: "string" }, basari_yuzdesi: { type: "number" } } } } } } }
   }
 };
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
   try {
-    const base64Data = await fileToGenerativePart(file);
-    const prompt = "Bu sınav sonuç belgesindeki tüm verileri analiz et. Varsa önceki sınav sonuçlarını da çıkararak gelişim trendlerini belirle. Çıktı sadece JSON olmalı.";
-
-    const response = await ai.models.generateContent({
+    const model = genAI.getGenerativeModel({ 
       model: MODEL_NAME,
-      contents: {
-        parts: [
-          { text: prompt },
-          { 
-            inlineData: { 
-              mimeType: file.type, 
-              data: base64Data 
-            } 
-          }
-        ]
-      },
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+      generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: RESPONSE_SCHEMA,
+        responseSchema: RESPONSE_SCHEMA as any, // Yeni SDK şemayı doğrudan destekler
         temperature: 0.1,
       }
     });
 
-    const text = response.text;
+    const base64Data = await fileToGenerativePart(file);
+    const prompt = "Bu sınav sonuç belgesindeki tüm verileri analiz et. Varsa önceki sınav sonuçlarını da çıkararak gelişim trendlerini belirle. Çıktı sadece JSON olmalı.";
+
+    const result = await model.generateContent([
+      prompt,
+      { inlineData: { data: base64Data, mimeType: file.type } }
+    ]);
+
+    const response = await result.response;
+    const text = response.text();
     
-    if (!text) {
-      throw new Error("API boş yanıt döndürdü.");
-    }
-    
-    // Temizleme işlemi (Markdown bloklarını kaldırır)
+    // Temizleme işlemi
     const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(cleanedJson) as AnalysisResult;
 
   } catch (error: any) {
     console.error("Analysis failed:", error);
-    throw new Error("Analiz sırasında bir hata oluştu: " + error.message);
+    throw new Error("Analiz Hatası: " + (error.message || "Bilinmeyen hata"));
   }
 };
 
@@ -158,24 +65,27 @@ export const chatWithElifHoca = async (
   analysisData: AnalysisResult
 ): Promise<string> => {
   try {
-    const formattedHistory = history.map(msg => ({
-      role: msg.role,
+    const model = genAI.getGenerativeModel({ 
+      model: MODEL_NAME,
+      systemInstruction: `Sen Elif Hoca AI adında, YKS öğrencilerine rehberlik eden bir eğitim koçusun. Şu anki öğrenci verileri: ${JSON.stringify(analysisData)}`
+    });
+
+    // History formatını yeni SDK'ya uyarla
+    const chatHistory = history.map(msg => ({
+      role: msg.role === 'model' ? 'model' : 'user',
       parts: [{ text: msg.content }],
     }));
 
-    const chat = ai.chats.create({ 
-      model: MODEL_NAME,
-      history: formattedHistory,
-      config: {
-        systemInstruction: `Sen Elif Hoca AI adında, YKS öğrencilerine rehberlik eden bir eğitim koçusun. Şu anki öğrenci verileri: ${JSON.stringify(analysisData)}`
-      }
+    const chat = model.startChat({
+      history: chatHistory,
     });
 
-    const result = await chat.sendMessage({ message: message });
-    return result.text || "Cevap alınamadı.";
+    const result = await chat.sendMessage(message);
+    const response = await result.response;
+    return response.text();
   } catch (error) {
     console.error("Chat error:", error);
-    throw new Error("Elif Hoca şu an cevap veremiyor.");
+    return "Şu an bağlantıda bir sorun var, ancak seni duyuyorum. Birazdan tekrar dener misin?";
   }
 };
 
