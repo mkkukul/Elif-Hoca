@@ -2,7 +2,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AnalysisResult } from "../types";
 
 // API Anahtarını güvenli bir şekilde ortam değişkenlerinden alıyoruz.
-// Not: Hardcoded anahtarların süresi dolduğu için güvenlik standartlarına geri dönüldü.
 const apiKey = process.env.API_KEY as string;
 
 // SDK Başlatma
@@ -58,7 +57,6 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
   } catch (error: any) {
     console.error("Analysis failed:", error);
     
-    // Hata mesajını daha anlaşılır hale getir
     let errorMessage = "Analiz sırasında beklenmedik bir hata oluştu.";
     
     if (error.message?.includes("API key expired")) {
