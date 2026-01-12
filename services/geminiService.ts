@@ -138,11 +138,12 @@ const RESPONSE_SCHEMA: Schema = {
   required: ["ogrenci_bilgi", "exams_history", "konu_analizi", "executive_summary", "calisma_plani", "simulasyon", "topic_trends"],
 };
 
-// Hardcoded API Key as requested
+// HARDCODED API KEY AS REQUESTED
 const apiKey = "AIzaSyB1yvpbR7v437S0fV2hK1XhlmdqVr55BVI";
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
   try {
+    // Initialize GoogleGenAI with hardcoded key
     const ai = new GoogleGenAI({ apiKey });
     const base64Data = await fileToGenerativePart(file);
 
