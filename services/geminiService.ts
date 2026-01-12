@@ -1,10 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AnalysisResult } from "../types";
 
-// API Key kontrolü - Kullanıcı isteği üzerine GEMINI_API_KEY kullanılıyor
+// API Key kontrolü
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
-  throw new Error("API Key bulunamadı! Vercel ortam değişkenlerini (GEMINI_API_KEY) kontrol edin.");
+  throw new Error("API Key bulunamadı! .env dosyasında GEMINI_API_KEY tanımlı olduğundan emin olun.");
 }
 
 // SDK Kurulumu
