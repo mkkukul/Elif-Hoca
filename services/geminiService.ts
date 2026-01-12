@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { AnalysisResult } from "../types";
 
 const SYSTEM_INSTRUCTION = `
@@ -33,34 +33,34 @@ Markdown formatında kalın başlıklar (**Başlık**) ve listeler kullan.
 Cevapların çok uzun paragraflar olmasın, okunabilir ve maddeli olsun.
 `;
 
-const RESPONSE_SCHEMA: Schema = {
-  type: Type.OBJECT,
+const RESPONSE_SCHEMA = {
+  type: SchemaType.OBJECT,
   properties: {
     ogrenci_bilgi: {
-      type: Type.OBJECT,
+      type: SchemaType.OBJECT,
       properties: {
-        ad_soyad: { type: Type.STRING, nullable: true },
-        sube: { type: Type.STRING, nullable: true },
-        numara: { type: Type.STRING, nullable: true },
+        ad_soyad: { type: SchemaType.STRING, nullable: true },
+        sube: { type: SchemaType.STRING, nullable: true },
+        numara: { type: SchemaType.STRING, nullable: true },
       },
       required: ["ad_soyad"],
     },
     exams_history: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          sinav_adi: { type: Type.STRING, nullable: true },
-          tarih: { type: Type.STRING, nullable: true },
-          toplam_puan: { type: Type.NUMBER },
-          genel_yuzdelik: { type: Type.NUMBER },
+          sinav_adi: { type: SchemaType.STRING, nullable: true },
+          tarih: { type: SchemaType.STRING, nullable: true },
+          toplam_puan: { type: SchemaType.NUMBER },
+          genel_yuzdelik: { type: SchemaType.NUMBER },
           ders_netleri: {
-            type: Type.ARRAY,
+            type: SchemaType.ARRAY,
             items: {
-              type: Type.OBJECT,
+              type: SchemaType.OBJECT,
               properties: {
-                ders: { type: Type.STRING },
-                net: { type: Type.NUMBER },
+                ders: { type: SchemaType.STRING },
+                net: { type: SchemaType.NUMBER },
               },
               required: ["ders", "net"],
             },
@@ -70,62 +70,62 @@ const RESPONSE_SCHEMA: Schema = {
       },
     },
     konu_analizi: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          ders: { type: Type.STRING },
-          konu: { type: Type.STRING },
-          dogru: { type: Type.NUMBER },
-          yanlis: { type: Type.NUMBER },
-          bos: { type: Type.NUMBER },
-          basari_yuzdesi: { type: Type.NUMBER },
-          kayip_puan: { type: Type.NUMBER },
-          durum: { type: Type.STRING },
+          ders: { type: SchemaType.STRING },
+          konu: { type: SchemaType.STRING },
+          dogru: { type: SchemaType.NUMBER },
+          yanlis: { type: SchemaType.NUMBER },
+          bos: { type: SchemaType.NUMBER },
+          basari_yuzdesi: { type: SchemaType.NUMBER },
+          kayip_puan: { type: SchemaType.NUMBER },
+          durum: { type: SchemaType.STRING },
         },
         required: ["ders", "konu", "dogru", "yanlis", "bos", "basari_yuzdesi", "kayip_puan", "durum"],
       },
     },
     executive_summary: {
-      type: Type.OBJECT,
+      type: SchemaType.OBJECT,
       properties: {
-        mevcut_durum: { type: Type.STRING, description: "HTML içerikli özet" },
-        guclu_yonler: { type: Type.ARRAY, items: { type: Type.STRING } },
-        zayif_yonler: { type: Type.ARRAY, items: { type: Type.STRING } },
-        yks_tahmini_siralama: { type: Type.NUMBER },
+        mevcut_durum: { type: SchemaType.STRING, description: "HTML içerikli özet" },
+        guclu_yonler: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+        zayif_yonler: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+        yks_tahmini_siralama: { type: SchemaType.NUMBER },
       },
       required: ["mevcut_durum", "guclu_yonler", "zayif_yonler", "yks_tahmini_siralama"],
     },
     calisma_plani: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
     },
     simulasyon: {
-      type: Type.OBJECT,
+      type: SchemaType.OBJECT,
       properties: {
-        senaryo: { type: Type.STRING },
-        hedef_yuzdelik: { type: Type.NUMBER },
-        hedef_puan: { type: Type.NUMBER },
-        puan_araligi: { type: Type.STRING },
-        gerekli_net_artisi: { type: Type.STRING },
-        gelisim_adimlari: { type: Type.ARRAY, items: { type: Type.STRING } },
+        senaryo: { type: SchemaType.STRING },
+        hedef_yuzdelik: { type: SchemaType.NUMBER },
+        hedef_puan: { type: SchemaType.NUMBER },
+        puan_araligi: { type: SchemaType.STRING },
+        gerekli_net_artisi: { type: SchemaType.STRING },
+        gelisim_adimlari: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
       },
       required: ["senaryo", "hedef_yuzdelik", "hedef_puan", "puan_araligi", "gerekli_net_artisi", "gelisim_adimlari"],
     },
     topic_trends: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          ders: { type: Type.STRING },
-          konu: { type: Type.STRING },
+          ders: { type: SchemaType.STRING },
+          konu: { type: SchemaType.STRING },
           history: {
-            type: Type.ARRAY,
+            type: SchemaType.ARRAY,
             items: {
-              type: Type.OBJECT,
+              type: SchemaType.OBJECT,
               properties: {
-                tarih: { type: Type.STRING },
-                basari_yuzdesi: { type: Type.NUMBER }
+                tarih: { type: SchemaType.STRING },
+                basari_yuzdesi: { type: SchemaType.NUMBER }
               },
               required: ["tarih", "basari_yuzdesi"]
             }
@@ -138,40 +138,46 @@ const RESPONSE_SCHEMA: Schema = {
   required: ["ogrenci_bilgi", "exams_history", "konu_analizi", "executive_summary", "calisma_plani", "simulasyon", "topic_trends"],
 };
 
-export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
-  const apiKey = process.env.GEMINI_API_KEY;
+// API Anahtarı alma yardımcı fonksiyonu
+const getApiKey = () => {
+  // @ts-ignore - Vite veya env değişkenleri için
+  const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || process.env?.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("API Key bulunamadı! Lütfen .env dosyasında GEMINI_API_KEY'in tanımlı olduğundan emin olun.");
+    throw new Error("API Key bulunamadı! Lütfen .env dosyasında VITE_GEMINI_API_KEY veya GEMINI_API_KEY'in tanımlı olduğundan emin olun.");
   }
+  return apiKey;
+};
+
+export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
+  const apiKey = getApiKey();
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const base64Data = await fileToGenerativePart(file);
-
-    const response = await ai.models.generateContent({
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: file.type,
-            },
-          },
-          {
-            text: "Bu sınav sonuç belgesindeki tüm verileri analiz et. Varsa önceki sınav sonuçlarını da çıkararak gelişim trendlerini belirle.",
-          },
-        ],
-      },
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+      systemInstruction: SYSTEM_INSTRUCTION,
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: RESPONSE_SCHEMA,
         temperature: 0.1,
-      },
+      }
     });
 
-    const text = response.text;
+    const base64Data = await fileToGenerativePart(file);
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          data: base64Data,
+          mimeType: file.type,
+        },
+      },
+      "Bu sınav sonuç belgesindeki tüm verileri analiz et. Varsa önceki sınav sonuçlarını da çıkararak gelişim trendlerini belirle.",
+    ]);
+
+    const response = result.response;
+    const text = response.text();
+
     if (text) {
       const jsonStart = text.indexOf('{');
       const jsonEnd = text.lastIndexOf('}');
@@ -194,36 +200,44 @@ export const chatWithElifHoca = async (
   message: string,
   analysisData: AnalysisResult
 ): Promise<string> => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key bulunamadı! Lütfen .env dosyasında GEMINI_API_KEY'in tanımlı olduğundan emin olun.");
-  }
+  const apiKey = getApiKey();
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    
-    // Veriyi string'e çevirip context olarak ekleyelim
-    const contextPrompt = `İşte öğrencinin mevcut analiz verileri (Bunu referans alarak cevapla): ${JSON.stringify(analysisData)}`;
-    
-    const contents = [
-      { role: 'user', parts: [{ text: contextPrompt }] }, 
-      ...history.map(msg => ({
-        role: msg.role,
-        parts: [{ text: msg.content }]
-      })),
-      { role: 'user', parts: [{ text: message }] }
-    ];
-
-    const response = await ai.models.generateContent({
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
-      contents: contents,
-      config: {
-        systemInstruction: CHAT_SYSTEM_INSTRUCTION,
-        temperature: 0.7, 
-      },
+      systemInstruction: CHAT_SYSTEM_INSTRUCTION,
+      generationConfig: {
+        temperature: 0.7,
+      }
     });
 
-    return response.text || "Üzgünüm, şu an cevap veremiyorum.";
+    // Chat geçmişini SDK formatına dönüştür
+    const formattedHistory = history.map(msg => ({
+      role: msg.role,
+      parts: [{ text: msg.content }]
+    }));
+
+    // İlk mesaj olarak context'i ekle (Eğer history boşsa veya en başa eklemek için)
+    // Chat oturumunu başlat
+    const chat = model.startChat({
+      history: [
+        {
+          role: "user",
+          parts: [{ text: `İşte öğrencinin mevcut analiz verileri (Bunu referans alarak cevapla): ${JSON.stringify(analysisData)}` }]
+        },
+        {
+          role: "model",
+          parts: [{ text: "Anlaşıldı, öğrencinin verilerini inceledim ve rehberlik etmeye hazırım." }]
+        },
+        ...formattedHistory
+      ],
+    });
+
+    const result = await chat.sendMessage(message);
+    const response = result.response;
+    
+    return response.text();
   } catch (error) {
     console.error("Chat error:", error);
     throw new Error("Elif Hoca şu an derste (API hatası). Lütfen tekrar dene.");
