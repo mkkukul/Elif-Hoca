@@ -138,24 +138,16 @@ const RESPONSE_SCHEMA: Schema = {
   required: ["ogrenci_bilgi", "exams_history", "konu_analizi", "executive_summary", "calisma_plani", "simulasyon", "topic_trends"],
 };
 
-// Helper function to validate and retrieve the API Key
-const getApiKey = (): string => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.error("API_KEY eksik! Lütfen .env dosyanızı kontrol edin.");
-    throw new Error("API Anahtarı bulunamadı. Lütfen sistem yöneticinizle iletişime geçin.");
-  }
-  return apiKey;
-};
+// Hardcoded API Key as requested
+const apiKey = "AIzaSyB1yvpbR7v437S0fV2hK1XhlmdqVr55BVI";
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
   try {
-    const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
     const base64Data = await fileToGenerativePart(file);
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: {
         parts: [
           {
@@ -201,14 +193,13 @@ export const chatWithElifHoca = async (
   analysisData: AnalysisResult
 ): Promise<string> => {
   try {
-    const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
     
     // Veriyi string'e çevirip context olarak ekleyelim
     const contextPrompt = `İşte öğrencinin mevcut analiz verileri (Bunu referans alarak cevapla): ${JSON.stringify(analysisData)}`;
     
     const contents = [
-      { role: 'user', parts: [{ text: contextPrompt }] }, // Context'i ilk mesaj olarak inject et
+      { role: 'user', parts: [{ text: contextPrompt }] }, 
       ...history.map(msg => ({
         role: msg.role,
         parts: [{ text: msg.content }]
@@ -217,11 +208,11 @@ export const chatWithElifHoca = async (
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: contents,
       config: {
         systemInstruction: CHAT_SYSTEM_INSTRUCTION,
-        temperature: 0.7, // Biraz daha yaratıcı ve konuşkan olması için artırdık
+        temperature: 0.7, 
       },
     });
 
