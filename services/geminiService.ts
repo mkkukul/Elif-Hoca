@@ -138,16 +138,18 @@ const RESPONSE_SCHEMA: Schema = {
   required: ["ogrenci_bilgi", "exams_history", "konu_analizi", "executive_summary", "calisma_plani", "simulasyon", "topic_trends"],
 };
 
-// HARDCODED API KEY
-const apiKey = "AIzaSyB1yvpbR7v437S0fV2hK1XhlmdqVr55BVI";
-
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key bulunamadı! Lütfen .env dosyasında GEMINI_API_KEY'in tanımlı olduğundan emin olun.");
+  }
+
   try {
     const ai = new GoogleGenAI({ apiKey });
     const base64Data = await fileToGenerativePart(file);
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-1.5-flash-001",
       contents: {
         parts: [
           {
@@ -192,6 +194,11 @@ export const chatWithElifHoca = async (
   message: string,
   analysisData: AnalysisResult
 ): Promise<string> => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key bulunamadı! Lütfen .env dosyasında GEMINI_API_KEY'in tanımlı olduğundan emin olun.");
+  }
+
   try {
     const ai = new GoogleGenAI({ apiKey });
     
@@ -208,7 +215,7 @@ export const chatWithElifHoca = async (
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-1.5-flash-001",
       contents: contents,
       config: {
         systemInstruction: CHAT_SYSTEM_INSTRUCTION,
