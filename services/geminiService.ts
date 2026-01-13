@@ -154,17 +154,33 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
     });
 
     const text = response.text;
-    if (text) {
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}');
-      if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error("Geçerli bir JSON verisi oluşturulamadı.");
-      }
-      const cleanedJson = text.substring(jsonStart, jsonEnd + 1);
-      return JSON.parse(cleanedJson) as AnalysisResult;
-    } else {
-      throw new Error("Analiz sonucu boş döndü.");
+    
+    // Savunmacı Kontrol 1: Yanıt boş mu?
+    if (!text) {
+      throw new Error("Analiz sonucu boş döndü (API yanıtı boş).");
     }
+
+    // Savunmacı Kontrol 2: JSON bloğunu bul (Regex yerine Substring)
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+
+    if (jsonStart === -1 || jsonEnd === -1) {
+      console.error("Ham Yanıt:", text);
+      throw new Error("Geçerli bir JSON verisi bulunamadı. Model yanıtı formatı hatalı.");
+    }
+
+    const jsonStr = text.substring(jsonStart, jsonEnd + 1);
+
+    // Savunmacı Kontrol 3: JSON Parse Hatası Yönetimi
+    try {
+      const parsedData = JSON.parse(jsonStr) as AnalysisResult;
+      return parsedData;
+    } catch (parseError) {
+      console.error("JSON Parse Hatası:", parseError);
+      console.error("Hatalı JSON String:", jsonStr);
+      throw new Error("Veri ayrıştırılamadı. Model bozuk bir JSON üretti.");
+    }
+
   } catch (error) {
     console.error("Analysis failed:", error);
     throw error;
