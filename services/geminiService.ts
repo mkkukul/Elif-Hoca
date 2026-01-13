@@ -1,5 +1,5 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { AnalysisResult } from "../types";
+import { GoogleGenAI, Type, Schema, Content } from "@google/genai";
+import { AnalysisResult, ChatMessage } from "../types";
 
 const SYSTEM_INSTRUCTION = `
 Rolün: Sen hata toleransı yüksek, uzman bir OCR ve Veri Dönüştürme Motorusun. Özellikle çok sayfalı PDF dokümanlarını ve karmaşık sınav sonuç tablolarını analiz etmede ustasın.
@@ -18,6 +18,26 @@ KRİTİK KURALLAR (HATA ÖNLEME):
    - "AYT Matematik", "AYT Fen Bilimleri", "AYT Edebiyat-Sosyal-1", "AYT Sosyal-2", "AYT Yabancı Dil"
 7. JSON yapısını asla bozma.
 8. Executive Summary 'mevcut_durum' alanı kısa HTML etiketleri (<b>, <ul>, <li> vb.) içerebilir.
+`;
+
+const ELIF_HOCA_SYSTEM_INSTRUCTION = `
+Sen Elif Hoca adında, YKS öğrencilerine rehberlik eden profesyonel, yapıcı ve motive edici bir eğitim koçusun. 
+
+Kişiliğin:
+- Asla sadece teknik veya robotik konuşma.
+- Bol bol emoji kullan (📊, 🎯, 🟢, 🔴, 🚀, 💪).
+- Öğrenciye ismiyle hitap et.
+- Cevaplarını Markdown formatında düzenle (Liste, kalın yazı vb. kullan).
+- Samimi, abla/koç tavrında ol ama ciddiyeti koru.
+
+Görevin:
+- Sana öğrencinin sınav sonuç verileri JSON formatında verilecek.
+- Öğrencinin netlerini, boşlarını ve konu eksiklerini analiz ederek stratejik tavsiyeler ver.
+- Olumsuz netleri veya düşük başarıyı "Gelişim Alanı" olarak adlandır, asla "Kötü" deme.
+- Amacın net artırmak. Somut, uygulanabilir tavsiyeler ver (örn: "Paragraf çözmeye ağırlık ver" yerine "Her sabah 20 paragrafı süre tutarak çöz").
+
+Bağlam:
+Aşağıda öğrencinin son sınav analizi bulunmaktadır. Tüm cevaplarını bu veriye dayandır:
 `;
 
 const RESPONSE_SCHEMA: Schema = {
@@ -199,4 +219,43 @@ const fileToGenerativePart = (file: File): Promise<string> => {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+};
+
+/**
+ * Elif Hoca Chatbot Fonksiyonu
+ */
+export const chatWithElifHoca = async (
+  history: ChatMessage[],
+  newMessage: string,
+  analysisData: AnalysisResult
+): Promise<string> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    
+    // Sınav sonuçlarını metne dökerek bağlam oluştur
+    const contextData = JSON.stringify(analysisData, null, 2);
+    const fullSystemInstruction = `${ELIF_HOCA_SYSTEM_INSTRUCTION}\n\n${contextData}`;
+
+    // Geçmiş mesajları API formatına dönüştür
+    const formattedHistory: Content[] = history.map(msg => ({
+      role: msg.role,
+      parts: [{ text: msg.text }]
+    }));
+
+    // Chat oturumu oluştur (Stateless gibi davransa da history ile durumu korur)
+    const chat = ai.chats.create({
+      model: "gemini-3-flash-preview",
+      config: {
+        systemInstruction: fullSystemInstruction,
+      },
+      history: formattedHistory
+    });
+
+    const result = await chat.sendMessage({ message: newMessage });
+    return result.text || "Üzgünüm, şu an cevap veremiyorum. Lütfen tekrar dene.";
+
+  } catch (error) {
+    console.error("Chat error:", error);
+    throw new Error("Elif Hoca şu an müsait değil. Bağlantını kontrol et.");
+  }
 };

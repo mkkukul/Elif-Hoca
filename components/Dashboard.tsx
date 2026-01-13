@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AnalysisResult, TopicAnalysis, TopicTrend } from '../types';
+import ChatInterface from './ChatInterface';
 import { 
   BarChart, 
   Bar, 
@@ -31,7 +32,8 @@ import {
   ShieldCheck,
   ShieldAlert,
   ChevronRight,
-  History
+  History,
+  MessageCircle
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -91,7 +93,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
   const currentTrend = trends[selectedTrendIndex] || trends[0];
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 pb-20 animate-fade-in space-y-8">
+    <div className="w-full max-w-[1600px] mx-auto px-4 pb-20 animate-fade-in space-y-8">
       {/* Header Profile Section */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 mt-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
         <div className="flex-grow">
@@ -132,9 +134,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Main Analysis Column */}
-        <div className="lg:col-span-8 space-y-8">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+        
+        {/* LEFT COLUMN (Graphs & Tables) */}
+        <div className="xl:col-span-8 space-y-8">
           
           {/* Tab Navigation */}
           <div className="flex p-1 bg-slate-200/50 rounded-2xl w-fit">
@@ -276,15 +279,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
-                  {currentTrend.history && currentTrend.history.length > 0 && (
-                    <div className="mt-6 flex items-center gap-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                      <TrendingUp className="text-blue-600" size={20} />
-                      <p className="text-sm text-blue-800 font-semibold">
-                        {currentTrend.konu} konusundaki son başarı oranınız %{currentTrend.history[currentTrend.history.length - 1].basari_yuzdesi}. 
-                        Hedeften %{100 - currentTrend.history[currentTrend.history.length - 1].basari_yuzdesi} uzaktasınız.
-                      </p>
-                    </div>
-                  )}
                 </div>
               ) : (
                  <div className="bg-slate-50 p-8 rounded-3xl text-center border border-slate-200">
@@ -292,30 +286,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
                     <p className="text-slate-500 font-medium">Bu analiz için yeterli geçmiş veri bulunamadı.</p>
                  </div>
               )}
-
-              {/* All Trends Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {trends.slice(0, 4).map((trend, i) => (
-                   <div key={i} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{trend.ders}</p>
-                          <h4 className="font-bold text-slate-800">{trend.konu}</h4>
-                        </div>
-                        <div className={`p-2 rounded-lg bg-emerald-50 text-emerald-600`}>
-                           <TrendingUp size={16} />
-                        </div>
-                      </div>
-                      <div className="h-20 w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={trend.history}>
-                            <Line type="monotone" dataKey="basari_yuzdesi" stroke={TREND_COLORS[i % TREND_COLORS.length]} strokeWidth={3} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                   </div>
-                ))}
-              </div>
             </div>
           )}
 
@@ -363,8 +333,11 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
           </div>
         </div>
 
-        {/* Sidebar / Plan Column */}
-        <div className="lg:col-span-4 space-y-8">
+        {/* RIGHT COLUMN (Chat & Plan) */}
+        <div className="xl:col-span-4 space-y-8">
+          
+          {/* ELIF HOCA AI CHATBOT */}
+          <ChatInterface analysisData={data} />
           
           {/* Simulation Section */}
           <div className="bg-white p-8 rounded-3xl shadow-sm border-2 border-orange-100 relative overflow-hidden">

@@ -68,3 +68,10 @@ export interface AnalysisState {
   data: AnalysisResult | null;
   error: string | null;
 }
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  text: string;
+  timestamp: Date;
+}

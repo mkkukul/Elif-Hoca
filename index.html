@@ -31,6 +31,12 @@
       .animate-fade-in-up {
         animation: fade-in-up 0.6s ease-out forwards;
       }
+      
+      /* Markdown Styles within Chat */
+      .prose p { margin-bottom: 0.5em; }
+      .prose ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 0.5em; }
+      .prose ol { list-style-type: decimal; padding-left: 1.2em; margin-bottom: 0.5em; }
+      .prose strong { color: inherit; font-weight: 700; }
     </style>
   <script type="importmap">
 {
@@ -40,7 +46,8 @@
     "recharts": "https://esm.sh/recharts@^3.6.0",
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-markdown": "https://esm.sh/react-markdown@9.0.1"
   }
 }
 </script>
