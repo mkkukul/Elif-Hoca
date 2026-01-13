@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { GoogleGenAI, Type, Schema, Content } from "@google/genai";
 import { AnalysisResult, ChatMessage } from "../types";
 
@@ -150,13 +151,14 @@ const RESPONSE_SCHEMA: Schema = {
 
 /**
  * API Key kontrolünü ve Model oluşturmayı SADECE fonksiyon çağrıldığında yapar.
- * Bu sayede uygulama başlatılırken (import time) env variable okumaya çalışmaz ve çökmez.
+ * Vite ortamında import.meta.env kullanılır. process.env KULLANILMAZ.
  */
 const getGenAIModel = (): GoogleGenAI => {
-  const apiKey = process.env.API_KEY;
+  // Vite'de env değişkenlerine import.meta.env üzerinden erişilir
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
   if (!apiKey) {
-    throw new Error("API Anahtarı (API_KEY) bulunamadı! Lütfen Vercel proje ayarlarından Environment Variables kısmını kontrol edin.");
+    throw new Error("API Anahtarı (VITE_GEMINI_API_KEY) bulunamadı! Lütfen .env dosyanızı veya Vercel ayarlarınızı kontrol edin.");
   }
 
   return new GoogleGenAI({ apiKey });
@@ -189,7 +191,6 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
     const base64Data = await fileToGenerativePart(file);
 
     // 3. API İsteği Gönder
-    // 'gemini-3-flash-preview' modeli basit metin/görüntü görevleri için optimize edilmiştir.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
