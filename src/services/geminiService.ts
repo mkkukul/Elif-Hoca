@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type, Schema, Content } from "@google/genai";
 import { AnalysisResult, ChatMessage } from "../types";
 
+// --- SABİTLER (Statik Stringler - Güvenli) ---
 const SYSTEM_INSTRUCTION = `
 Rolün: Sen hata toleransı yüksek, uzman bir OCR ve Veri Dönüştürme Motorusun. Özellikle çok sayfalı PDF dokümanlarını ve karmaşık sınav sonuç tablolarını analiz etmede ustasın.
 
@@ -145,25 +146,31 @@ const RESPONSE_SCHEMA: Schema = {
   required: ["ogrenci_bilgi", "exams_history", "konu_analizi", "executive_summary", "calisma_plani", "simulasyon", "topic_trends"],
 };
 
+// --- SINGLETON / LAZY LOADER ---
+
 /**
- * Lazy Initialization Helper
- * Bu fonksiyon, API anahtarının ve istemcinin sadece ihtiyaç duyulduğunda oluşturulmasını sağlar.
- * Bu sayede "build time" sırasında env değişkeni yoksa uygulama çökmez.
+ * API Key kontrolünü ve Model oluşturmayı SADECE fonksiyon çağrıldığında yapar.
+ * Bu sayede uygulama başlatılırken (import time) env variable okumaya çalışmaz ve çökmez.
  */
-const getGenAI = (): GoogleGenAI => {
+const getGenAIModel = (): GoogleGenAI => {
   const apiKey = process.env.API_KEY;
+
   if (!apiKey) {
-    throw new Error("API Anahtarı bulunamadı. Lütfen Vercel ortam değişkenlerinde API_KEY tanımlı olduğundan emin olun.");
+    throw new Error("API Anahtarı (API_KEY) bulunamadı! Lütfen Vercel proje ayarlarından Environment Variables kısmını kontrol edin.");
   }
+
   return new GoogleGenAI({ apiKey });
 };
+
+// --- YARDIMCI FONKSİYONLAR ---
 
 const fileToGenerativePart = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
-      const base64Data = base64String.split(",")[1];
+      // Data URL'den sadece base64 kısmını al
+      const base64Data = base64String.includes(",") ? base64String.split(",")[1] : base64String;
       resolve(base64Data);
     };
     reader.onerror = reject;
@@ -171,12 +178,18 @@ const fileToGenerativePart = (file: File): Promise<string> => {
   });
 };
 
+// --- SERVİS FONKSİYONLARI ---
+
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
   try {
-    // Client'ı lazy load yapıyoruz
-    const ai = getGenAI();
+    // 1. Modeli Tembel Yükle (Lazy Load)
+    const ai = getGenAIModel();
+    
+    // 2. Dosyayı Hazırla
     const base64Data = await fileToGenerativePart(file);
 
+    // 3. API İsteği Gönder
+    // 'gemini-3-flash-preview' modeli basit metin/görüntü görevleri için optimize edilmiştir.
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
@@ -203,53 +216,54 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
     const text = response.text;
     
     if (!text) {
-      throw new Error("Analiz sonucu boş döndü (API yanıtı boş).");
+      throw new Error("API'den boş yanıt döndü. Lütfen tekrar deneyin.");
     }
 
+    // 4. JSON Ayrıştırma (Güvenli Substring Yöntemi)
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}');
 
     if (jsonStart === -1 || jsonEnd === -1) {
-      console.error("Ham Yanıt:", text);
-      throw new Error("Geçerli bir JSON verisi bulunamadı. Model yanıtı formatı hatalı.");
+      console.error("Geçersiz API Yanıtı:", text);
+      throw new Error("API yanıtında geçerli bir JSON bulunamadı.");
     }
 
     const jsonStr = text.substring(jsonStart, jsonEnd + 1);
 
     try {
-      const parsedData = JSON.parse(jsonStr) as AnalysisResult;
-      return parsedData;
+      return JSON.parse(jsonStr) as AnalysisResult;
     } catch (parseError) {
       console.error("JSON Parse Hatası:", parseError);
-      throw new Error("Veri ayrıştırılamadı. Model bozuk bir JSON üretti.");
+      throw new Error("Veri formatı hatalı, analiz edilemedi.");
     }
 
-  } catch (error) {
-    console.error("Analysis failed:", error);
-    throw error;
+  } catch (error: any) {
+    console.error("Analiz Hatası:", error);
+    // Hatanın UI'da düzgün görünmesi için temizlenmiş mesaj fırlat
+    throw new Error(error.message || "Analiz sırasında bilinmeyen bir hata oluştu.");
   }
 };
 
-/**
- * Elif Hoca Chatbot Fonksiyonu
- */
 export const chatWithElifHoca = async (
   history: ChatMessage[],
   newMessage: string,
   analysisData: AnalysisResult
 ): Promise<string> => {
   try {
-    // Client'ı lazy load yapıyoruz
-    const ai = getGenAI();
+    // 1. Modeli Tembel Yükle
+    const ai = getGenAIModel();
     
+    // 2. Bağlam Verisini Hazırla
     const contextData = JSON.stringify(analysisData, null, 2);
     const fullSystemInstruction = `${ELIF_HOCA_SYSTEM_INSTRUCTION}\n\n${contextData}`;
 
+    // 3. Geçmiş Mesajları Formatla
     const formattedHistory: Content[] = history.map(msg => ({
       role: msg.role,
       parts: [{ text: msg.text }]
     }));
 
+    // 4. Sohbet Oturumunu Başlat
     const chat = ai.chats.create({
       model: "gemini-3-flash-preview",
       config: {
@@ -258,11 +272,12 @@ export const chatWithElifHoca = async (
       history: formattedHistory
     });
 
+    // 5. Mesajı Gönder
     const result = await chat.sendMessage({ message: newMessage });
-    return result.text || "Üzgünüm, şu an cevap veremiyorum. Lütfen tekrar dene.";
+    return result.text || "Üzgünüm, şu an cevap üretemiyorum.";
 
-  } catch (error) {
-    console.error("Chat error:", error);
-    throw new Error("Elif Hoca şu an müsait değil. Bağlantını kontrol et.");
+  } catch (error: any) {
+    console.error("Sohbet Hatası:", error);
+    throw new Error(error.message || "Elif Hoca ile bağlantı kurulamadı.");
   }
 };

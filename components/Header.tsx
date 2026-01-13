@@ -28,7 +28,8 @@ const Header: React.FC = () => {
           <button 
             onClick={toggleTheme}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-white/50"
-            aria-label="Temayı Değiştir"
+            aria-label={theme === 'dark' ? 'Aydınlık moda geç' : 'Karanlık moda geç'}
+            title={theme === 'dark' ? 'Aydınlık moda geç' : 'Karanlık moda geç'}
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
