@@ -11,30 +11,39 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    // 1. Check local storage
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const stored = localStorage.getItem('theme') as Theme;
-      if (stored === 'light' || stored === 'dark') return stored;
+    // Tarayıcı ortamında çalışıp çalışmadığımızı kontrol et
+    if (typeof window !== 'undefined') {
+      // 1. Önce localStorage kontrol et
+      const savedTheme = localStorage.getItem('theme') as Theme;
+      if (savedTheme) {
+        return savedTheme;
+      }
+      
+      // 2. Yoksa sistem tercihini kontrol et
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark';
+      }
     }
-    // 2. Check system preference
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
+    
+    // 3. Varsayılan olarak light
     return 'light';
   });
 
   useEffect(() => {
     const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    
+    // Önceki sınıfları temizle
+    root.classList.remove('light', 'dark');
+    
+    // Yeni temayı ekle
+    root.classList.add(theme);
+    
+    // Tercihi kaydet
     localStorage.setItem('theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
   return (
@@ -47,7 +56,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    throw new Error('useTheme, bir ThemeProvider içerisinde kullanılmalıdır.');
   }
   return context;
 };
