@@ -127,7 +127,8 @@ const RESPONSE_SCHEMA: Schema = {
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // API key is strictly required from environment variables
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
     const base64Data = await fileToGenerativePart(file);
 
     const response = await ai.models.generateContent({
