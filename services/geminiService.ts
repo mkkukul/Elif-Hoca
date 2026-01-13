@@ -1,19 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AnalysisResult } from "../types";
 
-// API Anahtarını en güvenli ve garantili yoldan alıyoruz
-// Önce Vite standardına, yoksa işlem ortamına bakar.
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY;
-
-if (!apiKey) {
-  console.error("KRİTİK HATA: API Anahtarı bulunamadı! Lütfen Vercel ayarlarında GEMINI_API_KEY tanımlı olduğundan emin olun.");
-}
+// API Anahtarını güvenli bir şekilde ortam değişkenlerinden alıyoruz.
+const apiKey = process.env.API_KEY as string;
 
 // SDK Başlatma
-const genAI = new GoogleGenerativeAI(apiKey || "");
+const genAI = new GoogleGenerativeAI(apiKey);
 
 // Model Tanımlama
-const MODEL_NAME = "gemini-1.5-flash";
+const MODEL_NAME = "gemini-1.5-flash-latest";
 
 const RESPONSE_SCHEMA = {
   description: "Sınav Analiz Sonucu",
@@ -31,7 +26,7 @@ const RESPONSE_SCHEMA = {
 
 export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => {
   if (!apiKey) {
-    throw new Error("API Anahtarı eksik! Sistem yöneticisiyle görüşün.");
+    throw new Error("API Anahtarı bulunamadı. Lütfen sistem yöneticisi ile iletişime geçin.");
   }
 
   try {
@@ -55,7 +50,7 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
     const response = await result.response;
     const text = response.text();
     
-    // Temizleme işlemi
+    // Clean response
     const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(cleanedJson) as AnalysisResult;
 
@@ -64,11 +59,10 @@ export const analyzeExamResult = async (file: File): Promise<AnalysisResult> => 
     
     let errorMessage = "Analiz sırasında beklenmedik bir hata oluştu.";
     
-    // Hata mesajlarını kullanıcı dostu hale getir
     if (error.message?.includes("API key expired")) {
-      errorMessage = "HATA: API Anahtarının süresi dolmuş. Lütfen yeni bir anahtar oluşturun.";
+      errorMessage = "Sistemdeki API anahtarının süresi dolmuş. Lütfen teknik destek ile iletişime geçin.";
     } else if (error.message?.includes("API key not valid")) {
-      errorMessage = "HATA: API Anahtarı geçersiz.";
+      errorMessage = "API anahtarı geçersiz.";
     } else if (error.message) {
       errorMessage = `Analiz Hatası: ${error.message}`;
     }
@@ -82,7 +76,7 @@ export const chatWithElifHoca = async (
   message: string,
   analysisData: AnalysisResult
 ): Promise<string> => {
-  if (!apiKey) return "Hata: API Anahtarı sistemde tanımlı değil.";
+  if (!apiKey) return "Sistem yapılandırma hatası: API Anahtarı eksik.";
 
   try {
     const model = genAI.getGenerativeModel({ 
@@ -106,7 +100,7 @@ export const chatWithElifHoca = async (
     console.error("Chat error:", error);
     
     if (error.message?.includes("API key expired")) {
-      return "Üzgünüm, şu an bağlantı kuramıyorum (API Anahtarının süresi dolmuş).";
+      return "Üzgünüm, şu an bağlantı kuramıyorum (API Anahtarı süresi dolmuş). Lütfen daha sonra tekrar dene.";
     }
 
     return "Şu an bağlantıda bir sorun var, ancak seni duyuyorum. Birazdan tekrar dener misin?";
