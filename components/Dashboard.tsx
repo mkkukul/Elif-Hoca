@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AnalysisResult, TopicAnalysis, TopicTrend } from '../types';
 import ChatInterface from './ChatInterface';
 import { 
@@ -19,6 +19,8 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, 
+  TrendingDown,
+  Minus,
   User, 
   Award, 
   UploadCloud, 
@@ -33,7 +35,9 @@ import {
   ShieldAlert,
   ChevronRight,
   History,
-  MessageCircle
+  MessageCircle,
+  Search,
+  Filter
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -47,6 +51,7 @@ const TREND_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
   const [activeTab, setActiveTab] = useState<'perf' | 'trend'>('perf');
   const [selectedTrendIndex, setSelectedTrendIndex] = useState(0);
+  const [trendSearch, setTrendSearch] = useState('');
 
   // SAVUNMACI PROGRAMLAMA: Veri kontrolü
   if (!data) return null;
@@ -89,8 +94,30 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
   };
 
   // Topic trends boş gelebilir, güvenli erişim
-  const trends = data.topic_trends || [];
-  const currentTrend = trends[selectedTrendIndex] || trends[0];
+  const trends = useMemo(() => data.topic_trends || [], [data.topic_trends]);
+  
+  const filteredTrends = useMemo(() => {
+    if (!trendSearch) return trends;
+    return trends.filter(t => 
+      t.ders.toLowerCase().includes(trendSearch.toLowerCase()) || 
+      t.konu.toLowerCase().includes(trendSearch.toLowerCase())
+    );
+  }, [trends, trendSearch]);
+
+  const currentTrend = filteredTrends[selectedTrendIndex] || filteredTrends[0];
+
+  const calculateChange = (history: {basari_yuzdesi: number}[]) => {
+    if (!history || history.length < 2) return 0;
+    const last = history[history.length - 1].basari_yuzdesi;
+    const first = history[0].basari_yuzdesi;
+    return last - first;
+  };
+
+  const getTrendIcon = (change: number) => {
+    if (change > 0) return <TrendingUp size={16} className="text-emerald-500" />;
+    if (change < 0) return <TrendingDown size={16} className="text-rose-500" />;
+    return <Minus size={16} className="text-slate-400" />;
+  };
 
   return (
     <div className="w-full max-w-[1600px] mx-auto px-4 pb-20 animate-fade-in space-y-8">
@@ -241,49 +268,156 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
             </div>
           ) : (
             <div className="space-y-8 animate-fade-in">
-              {/* Trend Chart Card */}
-              {trends.length > 0 && currentTrend ? (
-                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                    <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 uppercase tracking-tight">
-                      <History className="text-blue-500" size={24} />
-                      Konu Gelişim Trendi
-                    </h3>
-                    <select 
-                      className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-teal-500"
-                      value={selectedTrendIndex}
-                      onChange={(e) => setSelectedTrendIndex(parseInt(e.target.value))}
-                    >
-                      {trends.map((trend, i) => (
-                        <option key={i} value={i}>{trend.ders}: {trend.konu}</option>
-                      ))}
-                    </select>
+              {/* Trend Chart Layout: Split View */}
+              {trends.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                  
+                  {/* Left: Trend List */}
+                  <div className="md:col-span-1 bg-slate-50/50 border-r border-slate-100 flex flex-col h-[600px]">
+                    <div className="p-4 border-b border-slate-100">
+                      <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 mb-3 uppercase tracking-tight">
+                        <ListChecks size={18} className="text-blue-500" />
+                        Konu Listesi
+                      </h3>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                        <input 
+                          type="text" 
+                          placeholder="Ders veya konu ara..." 
+                          className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-slate-600 focus:outline-none focus:border-teal-400 transition-colors"
+                          value={trendSearch}
+                          onChange={(e) => {
+                            setTrendSearch(e.target.value);
+                            setSelectedTrendIndex(0); // Reset selection on search
+                          }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex-grow overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-slate-300">
+                      {filteredTrends.map((trend, idx) => {
+                        const change = calculateChange(trend.history);
+                        const isSelected = filteredTrends.indexOf(currentTrend) === idx;
+                        
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => setSelectedTrendIndex(idx)}
+                            className={`w-full text-left p-3 rounded-xl transition-all border ${
+                              isSelected 
+                                ? 'bg-white border-teal-200 shadow-md ring-1 ring-teal-100' 
+                                : 'bg-transparent border-transparent hover:bg-slate-100 hover:border-slate-200'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-teal-600' : 'text-slate-400'}`}>
+                                {trend.ders}
+                              </span>
+                              {getTrendIcon(change)}
+                            </div>
+                            <div className="flex justify-between items-end">
+                                <span className={`text-sm font-bold line-clamp-2 ${isSelected ? 'text-slate-800' : 'text-slate-600'}`}>
+                                  {trend.konu}
+                                </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                      {filteredTrends.length === 0 && (
+                        <div className="text-center py-8 text-slate-400 text-sm">
+                          Sonuç bulunamadı.
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="h-80 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={currentTrend.history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorTrend" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0d9488" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="tarih" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} domain={[0, 100]} unit="%" />
-                        <Tooltip 
-                          contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                        />
-                        <Area type="monotone" dataKey="basari_yuzdesi" name="Başarı Oranı" stroke="#0d9488" strokeWidth={4} fillOpacity={1} fill="url(#colorTrend)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                  {/* Right: Chart Area */}
+                  <div className="md:col-span-2 p-6 md:p-8 flex flex-col">
+                    {currentTrend ? (
+                      <>
+                        <div className="flex flex-col mb-8">
+                           <div className="flex items-center gap-2 mb-2">
+                              <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                                {currentTrend.ders}
+                              </span>
+                              <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold uppercase tracking-wider">
+                                Gelişim Analizi
+                              </span>
+                           </div>
+                           <h3 className="text-2xl font-black text-slate-800 mb-1">
+                             {currentTrend.konu}
+                           </h3>
+                           <p className="text-slate-400 text-sm font-medium">
+                             Bu konudaki başarı yüzdesinin zaman içindeki değişimi
+                           </p>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 mb-8">
+                          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                             <span className="text-slate-400 text-[10px] font-bold uppercase">Başlangıç</span>
+                             <div className="text-xl font-black text-slate-700">
+                               %{currentTrend.history[0]?.basari_yuzdesi || 0}
+                             </div>
+                          </div>
+                          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                             <span className="text-slate-400 text-[10px] font-bold uppercase">Şu An</span>
+                             <div className="text-xl font-black text-slate-700">
+                               %{currentTrend.history[currentTrend.history.length-1]?.basari_yuzdesi || 0}
+                             </div>
+                          </div>
+                          <div className={`rounded-2xl p-4 border ${calculateChange(currentTrend.history) >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+                             <span className={`${calculateChange(currentTrend.history) >= 0 ? 'text-emerald-400' : 'text-rose-400'} text-[10px] font-bold uppercase`}>Değişim</span>
+                             <div className={`text-xl font-black ${calculateChange(currentTrend.history) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                               {calculateChange(currentTrend.history) > 0 ? '+' : ''}{calculateChange(currentTrend.history)}%
+                             </div>
+                          </div>
+                        </div>
+
+                        <div className="flex-grow min-h-[300px] w-full bg-white rounded-2xl p-2">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={currentTrend.history} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="colorTrend" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="tarih" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#64748b' }} dy={10} />
+                              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600, fill: '#94a3b8' }} domain={[0, 100]} unit="%" />
+                              <Tooltip 
+                                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                                labelStyle={{ color: '#64748b', fontWeight: 'bold', marginBottom: '0.5rem' }}
+                              />
+                              <Area 
+                                type="monotone" 
+                                dataKey="basari_yuzdesi" 
+                                name="Başarı Oranı" 
+                                stroke="#6366f1" 
+                                strokeWidth={4} 
+                                fillOpacity={1} 
+                                fill="url(#colorTrend)" 
+                                activeDot={{ r: 8, strokeWidth: 0, fill: '#4f46e5' }}
+                              />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
+                        <History size={48} className="mb-4" />
+                        <p>Analiz edilecek konu seçin</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
-                 <div className="bg-slate-50 p-8 rounded-3xl text-center border border-slate-200">
-                    <History className="mx-auto text-slate-300 mb-3" size={48} />
-                    <p className="text-slate-500 font-medium">Bu analiz için yeterli geçmiş veri bulunamadı.</p>
+                 <div className="bg-slate-50 p-12 rounded-3xl text-center border border-slate-200">
+                    <History className="mx-auto text-slate-300 mb-4" size={64} />
+                    <h3 className="text-xl font-bold text-slate-700 mb-2">Trend Verisi Bulunamadı</h3>
+                    <p className="text-slate-500 font-medium max-w-md mx-auto">
+                      Bu analiz için yeterli geçmiş sınav verisi çıkarılamadı. Daha fazla deneme yükledikçe gelişim grafikleri burada belirecektir.
+                    </p>
                  </div>
               )}
             </div>
